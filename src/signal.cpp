@@ -17,6 +17,8 @@
 #include "functions.h"
 #include "train.h"
 #include "company_base.h"
+#include "gui.h"
+#include "table/strings.h"
 
 
 /** these are the maximums used for updating signal blocks */
@@ -187,7 +189,7 @@ public:
 static SmallSet<Trackdir, SIG_TBU_SIZE> _tbuset("_tbuset");         ///< set of signals that will be updated
 static SmallSet<DiagDirection, SIG_TBD_SIZE> _tbdset("_tbdset");    ///< set of open nodes in current signal block
 static SmallSet<DiagDirection, SIG_GLOB_SIZE> _globset("_globset"); ///< set of places to be updated in following runs
-
+static uint _num_nands_passed; ///< Number of NAND signals passed
 
 /** Check whether there is a train on rail, not in a depot */
 static Vehicle *TrainOnTileEnum(Vehicle *v, void *)
@@ -247,14 +249,14 @@ static inline bool MaybeAddToTodoSet(TileIndex t1, DiagDirection d1, TileIndex t
 
 /** Current signal block state flags */
 enum SigFlags {
-	SF_NONE   = 0,
-	SF_TRAIN  = 1 << 0, ///< train found in segment
-	SF_EXIT   = 1 << 1, ///< exitsignal found
-	SF_EXIT2  = 1 << 2, ///< two or more exits found
-	SF_GREEN  = 1 << 3, ///< green exitsignal found
-	SF_GREEN2 = 1 << 4, ///< two or more green exits found
-	SF_FULL   = 1 << 5, ///< some of buffers was full, do not continue
-	SF_PBS    = 1 << 6, ///< pbs signal found
+	SF_NONE    = 0,
+	SF_TRAIN   = 1 << 0, ///< train found in segment
+	SF_EXIT    = 1 << 1, ///< exitsignal found
+	SF_EXIT2   = 1 << 2, ///< two or more exits found
+	SF_GREEN   = 1 << 3, ///< green exitsignal found
+	SF_GREEN2  = 1 << 4, ///< two or more green exits found
+	SF_FULL    = 1 << 5, ///< some of buffers was full, do not continue
+	SF_PBS     = 1 << 6, ///< pbs signal found
 };
 
 DECLARE_ENUM_AS_BIT_SET(SigFlags)
@@ -269,7 +271,6 @@ DECLARE_ENUM_AS_BIT_SET(SigFlags)
 static SigFlags ExploreSegment(Owner owner)
 {
 	SigFlags flags = SF_NONE;
-
 	TileIndex tile;
 	DiagDirection enterdir;
 
@@ -326,7 +327,7 @@ static SigFlags ExploreSegment(Owner owner)
 						}
 						if (HasSignalOnTrackdir(tile, trackdir) && !IsOnewaySignal(tile, track)) flags |= SF_PBS;
 
-						/* if it is a presignal EXIT in OUR direction and we haven't found 2 green exits yes, do special check */
+						/* if it is a presignal EXIT in OUR direction and we haven't found 2 green exits yet, do a special check */
 						if (!(flags & SF_GREEN2) && IsPresignalExit(tile, track) && HasSignalOnTrackdir(tile, trackdir)) { // found presignal exit
 							if (flags & SF_EXIT) flags |= SF_EXIT2; // found two (or more) exits
 							flags |= SF_EXIT; // found at least one exit - allow for compiler optimizations
@@ -421,25 +422,49 @@ static void UpdateSignalsAroundSegment(SigFlags flags)
 		if (flags & SF_TRAIN) {
 			/* train in the segment */
 			newstate = SIGNAL_STATE_RED;
-		} else {
+		} else if(sig == SIGTYPE_NAND && 
+				_num_nands_passed > _settings_game.construction.maximum_nand_changes) {
+			newstate = SIGNAL_STATE_RED;
+		} else {		
 			/* is it a bidir combo? - then do not count its other signal direction as exit */
-			if (sig == SIGTYPE_COMBO && HasSignalOnTrackdir(tile, ReverseTrackdir(trackdir))) {
-				/* at least one more exit */
-				if ((flags & SF_EXIT2) &&
+			if (IsComboSignal(sig) && HasSignalOnTrackdir(tile, ReverseTrackdir(trackdir))) {
+				if(sig == SIGTYPE_NAND) { /* NAND */
+					_num_nands_passed++;
+					/* at least one more exit */
+					if((flags & SF_EXIT2) &&
+							/* not all red */
+							((flags & SF_GREEN) ||
+							/* only one green exit, and we are said exit */
+							(!(flags & SF_GREEN2) && GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN))) {
+						newstate = SIGNAL_STATE_RED;
+					}
+				} else { /* traditional combo */
+					/* at least one more exit */
+					if ((flags & SF_EXIT2) &&
 						/* no green exit */
-						(!(flags & SF_GREEN) ||
-						/* only one green exit, and it is this one - so all other exits are red */
-						(!(flags & SF_GREEN2) && GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN))) {
-					newstate = SIGNAL_STATE_RED;
+							(!(flags & SF_GREEN) ||
+							/* only one green exit, and it is this one - so all other exits are red */
+							(!(flags & SF_GREEN2) && GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN))) {
+						newstate = SIGNAL_STATE_RED;
+					}
 				}
 			} else { // entry, at least one exit, no green exit
-				if (IsPresignalEntry(tile, TrackdirToTrack(trackdir)) && (flags & SF_EXIT) && !(flags & SF_GREEN)) newstate = SIGNAL_STATE_RED;
+				if (IsEntrySignal(sig)) {
+					if (sig == SIGTYPE_NAND) {
+						_num_nands_passed++;
+						if((flags & SF_EXIT) && (flags & SF_GREEN)) {
+							newstate = SIGNAL_STATE_RED;
+						}
+					} else { /* traditional combo */
+						if((flags & SF_EXIT) && !(flags & SF_GREEN)) newstate = SIGNAL_STATE_RED;
+					}
+				}
 			}
 		}
 
 		/* only when the state changes */
 		if (newstate != GetSignalStateByTrackdir(tile, trackdir)) {
-			if (IsPresignalExit(tile, TrackdirToTrack(trackdir))) {
+			if (IsExitSignal(sig)) {
 				/* for pre-signal exits, add block to the global set */
 				DiagDirection exitdir = TrackdirToExitdir(ReverseTrackdir(trackdir));
 				_globset.Add(tile, exitdir); // do not check for full global set, first update all signals
@@ -474,6 +499,7 @@ static SigSegState UpdateSignalsInBuffer(Owner owner)
 
 	bool first = true;  // first block?
 	SigSegState state = SIGSEG_FREE; // value to return
+	_num_nands_passed = 0;
 
 	TileIndex tile;
 	DiagDirection dir;
@@ -544,6 +570,10 @@ static SigSegState UpdateSignalsInBuffer(Owner owner)
 		if (flags & SF_FULL) {
 			ResetSets(); // free all sets
 			break;
+		}
+
+		if (_num_nands_passed > _settings_game.construction.maximum_nand_changes) {
+			ShowErrorMessage(STR_ERROR_NAND_CHANGES, STR_EMPTY, WL_INFO);
 		}
 
 		UpdateSignalsAroundSegment(flags);

@@ -898,8 +898,7 @@ CommandCost CmdBuildTrainDepot(TileIndex tile, DoCommandFlag flags, uint32 p1, u
  * - p1 = (bit 4)   - 0 = signals, 1 = semaphores
  * - p1 = (bit 5-7) - type of the signal, for valid values see enum SignalType in rail_map.h
  * - p1 = (bit 8)   - convert the present signal type and variant
- * - p1 = (bit 9-11)- start cycle from this signal type
- * - p1 = (bit 12-14)-wrap around after this signal type
+ * - p1 = (bit 9-14)- cycle through which signal set?
  * - p1 = (bit 15-16)-cycle the signal direction this many times
  * - p1 = (bit 17)  - 1 = don't modify an existing signal but don't fail either, 0 = always set new signal type
  * @param p2 used for CmdBuildManySignals() to copy direction of first signal
@@ -914,9 +913,8 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 	SignalVariant sigvar = (ctrl_pressed ^ HasBit(p1, 4)) ? SIG_SEMAPHORE : SIG_ELECTRIC; // the signal variant of the new signal
 	SignalType sigtype = (SignalType)GB(p1, 5, 3); // the signal type of the new signal
 	bool convert_signal = HasBit(p1, 8); // convert button pressed
-	SignalType cycle_start = (SignalType)GB(p1, 9, 3);
-	SignalType cycle_stop = (SignalType)GB(p1, 12, 3);
 	uint num_dir_cycle = GB(p1, 15, 2);
+	uint which_signals = GB(p1, 9, 6);
 
 	if (sigtype > SIGTYPE_LAST) return CMD_ERROR;
 
@@ -1023,8 +1021,7 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 				} else if (ctrl_pressed) {
 					/* cycle between cycle_start and cycle_end */
 					sigtype = (SignalType)(GetSignalType(tile, track) + 1);
-
-					if (sigtype < cycle_start || sigtype > cycle_stop) sigtype = cycle_start;
+					sigtype = NextSignalType(sigtype, which_signals);
 
 					SetSignalType(tile, track, sigtype);
 					if (IsPbsSignal(sigtype) && (GetPresentSignals(tile) & SignalOnTrack(track)) == SignalOnTrack(track)) {
@@ -1701,7 +1698,7 @@ static void DrawSingleSignal(TileIndex tile, Track track, byte condition, uint i
 		sprite = SPR_ORIGINAL_SIGNALS_BASE + image + condition;
 	} else {
 		/* All other signals are picked from add on sprites. */
-		sprite = SPR_SIGNALS_BASE + (type - 1) * 16 + variant * 64 + image + condition + (type > SIGTYPE_LAST_NOPBS ? 64 : 0);
+		sprite = SPR_SIGNALS_BASE + (type - 1) * 16 + variant * 64 + image + condition + (IsSignalSpritePBS(type) ? 64 : 0);
 	}
 
 	AddSortableSpriteToDraw(sprite, PAL_NONE, x, y, 1, 1, BB_HEIGHT_UNDER_BRIDGE, GetSaveSlopeZ(x, y, track));
@@ -2584,14 +2581,15 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 			break;
 
 		case RAIL_TILE_SIGNALS: {
-			static const StringID signal_type[6][6] = {
+			static const StringID signal_type[7][7] = {
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_SIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PRESIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_EXITSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_COMBOSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PBSSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NANDSIGNALS
 				},
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PRESIGNALS,
@@ -2599,7 +2597,8 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_EXITSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_COMBOSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_PBSSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_NANDSIGNALS
 				},
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_EXITSIGNALS,
@@ -2607,7 +2606,8 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXITSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_COMBOSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_PBSSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NANDSIGNALS
 				},
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_COMBOSIGNALS,
@@ -2615,7 +2615,8 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_COMBOSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBOSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_PBSSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NANDSIGNALS
 				},
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_PBSSIGNALS,
@@ -2623,7 +2624,8 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_PBSSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_PBSSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBSSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NANDSIGNALS
 				},
 				{
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NOENTRYSIGNALS,
@@ -2631,7 +2633,17 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NOENTRYSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NOENTRYSIGNALS,
 					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NOENTRYSIGNALS,
-					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NOENTRYSIGNALS
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NOENTRYSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NOENTRY_NANDSIGNALS
+				},
+				{
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NORMAL_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PRE_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_EXIT_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_COMBO_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_PBS_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NOENTRY_NANDSIGNALS,
+					STR_LAI_RAIL_DESCRIPTION_TRACK_WITH_NANDSIGNALS
 				}
 			};
 

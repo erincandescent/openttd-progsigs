@@ -45,6 +45,7 @@ static byte _cur_waypoint_type;              ///< Currently selected waypoint ty
 static bool _convert_signal_button;          ///< convert signal button in the signal GUI pressed
 static SignalVariant _cur_signal_variant;    ///< set the signal variant (for signal GUI)
 static SignalType _cur_signal_type;          ///< set the signal type (for signal GUI)
+static uint _cur_signal_button;              ///< set the signal button (for signal GUI)
 
 /* Map the setting: default_signal_type to the corresponding signal type */
 static const SignalType _default_signal_type[] = {SIGTYPE_NORMAL, SIGTYPE_PBS, SIGTYPE_PBS_ONEWAY};
@@ -225,9 +226,6 @@ static void GenericPlaceSignals(TileIndex tile)
 	} else {
 		const Window *w = FindWindowById(WC_BUILD_SIGNAL, 0);
 
-		/* Map the setting cycle_signal_types to the lower and upper allowed signal type. */
-		static const uint cycle_bounds[] = {SIGTYPE_NORMAL | (SIGTYPE_LAST_NOPBS << 3), SIGTYPE_PBS | (SIGTYPE_LAST << 3), SIGTYPE_NORMAL | (SIGTYPE_LAST << 3)};
-
 		/* various bitstuffed elements for CmdBuildSingleSignal() */
 		uint32 p1 = track;
 
@@ -237,13 +235,13 @@ static void GenericPlaceSignals(TileIndex tile)
 			SB(p1, 4, 1, _cur_signal_variant);
 			SB(p1, 5, 3, _cur_signal_type);
 			SB(p1, 8, 1, _convert_signal_button);
-			SB(p1, 9, 6, cycle_bounds[_settings_client.gui.cycle_signal_types]);
+			SB(p1, 9, 6, _settings_client.gui.cycle_signal_types);
 		} else {
 			SB(p1, 3, 1, _ctrl_pressed);
 			SB(p1, 4, 1, (_cur_year < _settings_client.gui.semaphore_build_before ? SIG_SEMAPHORE : SIG_ELECTRIC));
 			SB(p1, 5, 3, _default_signal_type[_settings_client.gui.default_signal_type]);
 			SB(p1, 8, 1, 0);
-			SB(p1, 9, 6, cycle_bounds[_settings_client.gui.cycle_signal_types]);
+			SB(p1, 9, 6, _settings_client.gui.cycle_signal_types);
 		}
 
 		DoCommandP(tile, p1, 0, CMD_BUILD_SIGNALS |
@@ -1458,12 +1456,14 @@ enum BuildSignalWidgets {
 	BSW_SEMAPHORE_ENTRY,
 	BSW_SEMAPHORE_EXIT,
 	BSW_SEMAPHORE_COMBO,
+	BSW_SEMAPHORE_NAND,
 	BSW_SEMAPHORE_PBS,
 	BSW_SEMAPHORE_PBS_OWAY,
 	BSW_ELECTRIC_NORM,
 	BSW_ELECTRIC_ENTRY,
 	BSW_ELECTRIC_EXIT,
 	BSW_ELECTRIC_COMBO,
+	BSW_ELECTRIC_NAND,
 	BSW_ELECTRIC_PBS,
 	BSW_ELECTRIC_PBS_OWAY,
 	BSW_CONVERT,
@@ -1535,14 +1535,32 @@ public:
 		if (IsInsideMM(widget, BSW_SEMAPHORE_NORM, BSW_ELECTRIC_PBS_OWAY + 1)) {
 			/* We need to do some custom sprite widget drawing for the signals. */
 			const SpriteID _signal_lookup[] = {
-				SPR_IMG_SIGNAL_SEMAPHORE_NORM,  SPR_IMG_SIGNAL_SEMAPHORE_ENTRY, SPR_IMG_SIGNAL_SEMAPHORE_EXIT,
-				SPR_IMG_SIGNAL_SEMAPHORE_COMBO, SPR_IMG_SIGNAL_SEMAPHORE_PBS,   SPR_IMG_SIGNAL_SEMAPHORE_PBS_OWAY,
+				SPR_IMG_SIGNAL_SEMAPHORE_NORM,  SPR_IMG_SIGNAL_SEMAPHORE_ENTRY, SPR_IMG_SIGNAL_SEMAPHORE_EXIT, 
+				SPR_IMG_SIGNAL_SEMAPHORE_COMBO, SPR_IMG_SIGNAL_SEMAPHORE_NAND, 
+				SPR_IMG_SIGNAL_SEMAPHORE_PBS,   SPR_IMG_SIGNAL_SEMAPHORE_PBS_OWAY,
 
 				SPR_IMG_SIGNAL_ELECTRIC_NORM,  SPR_IMG_SIGNAL_ELECTRIC_ENTRY, SPR_IMG_SIGNAL_ELECTRIC_EXIT,
-				SPR_IMG_SIGNAL_ELECTRIC_COMBO, SPR_IMG_SIGNAL_ELECTRIC_PBS,   SPR_IMG_SIGNAL_ELECTRIC_PBS_OWAY
+				SPR_IMG_SIGNAL_ELECTRIC_COMBO, SPR_IMG_SIGNAL_ELECTRIC_NAND, 
+				SPR_IMG_SIGNAL_ELECTRIC_PBS,   SPR_IMG_SIGNAL_ELECTRIC_PBS_OWAY
 			};
 
 			this->DrawSignalSprite(widget, _signal_lookup[widget - BSW_SEMAPHORE_NORM]);
+		}
+	}
+
+	inline SignalType TypeForClick(uint id)
+	{
+		switch(id) {
+			case 0: return SIGTYPE_NORMAL;
+			case 1: return SIGTYPE_ENTRY;
+			case 2: return SIGTYPE_EXIT;
+			case 3: return SIGTYPE_COMBO;
+			case 4: return SIGTYPE_NAND;
+			case 5: return SIGTYPE_PBS;
+			case 6: return SIGTYPE_PBS_ONEWAY;
+			default:
+				assert(!"Bad signal type button ID");
+				return SIGTYPE_NORMAL;
 		}
 	}
 
@@ -1553,17 +1571,20 @@ public:
 			case BSW_SEMAPHORE_ENTRY:
 			case BSW_SEMAPHORE_EXIT:
 			case BSW_SEMAPHORE_COMBO:
+			case BSW_SEMAPHORE_NAND:
 			case BSW_SEMAPHORE_PBS:
 			case BSW_SEMAPHORE_PBS_OWAY:
 			case BSW_ELECTRIC_NORM:
 			case BSW_ELECTRIC_ENTRY:
 			case BSW_ELECTRIC_EXIT:
 			case BSW_ELECTRIC_COMBO:
+			case BSW_ELECTRIC_NAND:
 			case BSW_ELECTRIC_PBS:
 			case BSW_ELECTRIC_PBS_OWAY:
-				this->RaiseWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_type);
+				this->RaiseWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_button);
 
-				_cur_signal_type = (SignalType)((uint)((widget - BSW_SEMAPHORE_NORM) % (SIGTYPE_LAST + 1)));
+				_cur_signal_button = (uint)((widget - BSW_SEMAPHORE_NORM) % (SIGTYPE_LAST + 1));
+				_cur_signal_type = TypeForClick(_cur_signal_button);
 				_cur_signal_variant = widget >= BSW_ELECTRIC_NORM ? SIG_ELECTRIC : SIG_SEMAPHORE;
 				break;
 
@@ -1593,7 +1614,7 @@ public:
 
 	virtual void OnInvalidateData(int data = 0)
 	{
-		this->LowerWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_type);
+		this->LowerWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_button);
 
 		this->SetWidgetLoweredState(BSW_CONVERT, _convert_signal_button);
 
@@ -1608,23 +1629,28 @@ static const NWidgetPart _nested_signal_builder_widgets[] = {
 		NWidget(WWT_CLOSEBOX, COLOUR_DARK_GREEN),
 		NWidget(WWT_CAPTION, COLOUR_DARK_GREEN), SetDataTip(STR_BUILD_SIGNAL_CAPTION, STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS),
 	EndContainer(),
+	
 	NWidget(NWID_VERTICAL, NC_EQUALSIZE),
 		NWidget(NWID_HORIZONTAL, NC_EQUALSIZE),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_NORM), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_NORM_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_ENTRY), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_ENTRY_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_EXIT), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_EXIT_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_COMBO), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_COMBO_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_PBS), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_PBS_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_NORM),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_NORM_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_ENTRY),    SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_ENTRY_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_EXIT),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_EXIT_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_COMBO),    SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_COMBO_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_NAND),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_NAND_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_PBS),      SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_PBS_TOOLTIP), EndContainer(), SetFill(1, 1),
 			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_SEMAPHORE_PBS_OWAY), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_SEMAPHORE_PBS_OWAY_TOOLTIP), EndContainer(), SetFill(1, 1),
 			NWidget(WWT_IMGBTN, COLOUR_DARK_GREEN, BSW_CONVERT), SetDataTip(SPR_IMG_SIGNAL_CONVERT, STR_BUILD_SIGNAL_CONVERT_TOOLTIP), SetFill(1, 1),
 		EndContainer(),
+		
 		NWidget(NWID_HORIZONTAL, NC_EQUALSIZE),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_NORM), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_NORM_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_ENTRY), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_ENTRY_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_EXIT), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_EXIT_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_COMBO), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_COMBO_TOOLTIP), EndContainer(), SetFill(1, 1),
-			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_PBS), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_PBS_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_NORM),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_NORM_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_ENTRY),    SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_ENTRY_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_EXIT),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_EXIT_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_COMBO),    SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_COMBO_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_NAND),     SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_NAND_TOOLTIP), EndContainer(), SetFill(1, 1),
+			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_PBS),      SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_PBS_TOOLTIP), EndContainer(), SetFill(1, 1),
 			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_ELECTRIC_PBS_OWAY), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_ELECTRIC_PBS_OWAY_TOOLTIP), EndContainer(), SetFill(1, 1),
+			
 			NWidget(WWT_PANEL, COLOUR_DARK_GREEN, BSW_DRAG_SIGNALS_DENSITY), SetDataTip(STR_NULL, STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_TOOLTIP), SetFill(1, 1),
 				NWidget(WWT_LABEL, COLOUR_DARK_GREEN, BSW_DRAG_SIGNALS_DENSITY_LABEL), SetDataTip(STR_ORANGE_INT, STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_TOOLTIP), SetFill(1, 1),
 				NWidget(NWID_HORIZONTAL), SetPIP(2, 0, 2),
@@ -1924,7 +1950,7 @@ bool ResetSignalVariant(int32 p = 0)
 		Window *w = FindWindowById(WC_BUILD_SIGNAL, 0);
 		if (w != NULL) {
 			w->SetDirty();
-			w->RaiseWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_type);
+			w->RaiseWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_button);
 		}
 		_cur_signal_variant = new_variant;
 	}
@@ -1940,6 +1966,10 @@ void InitializeRailGUI()
 	SetDefaultRailGui();
 
 	_convert_signal_button = false;
-	_cur_signal_type = _default_signal_type[_settings_client.gui.default_signal_type];
+	_cur_signal_type   = _default_signal_type[_settings_client.gui.default_signal_type];
+	_cur_signal_button = 
+		_cur_signal_type == SIGTYPE_NAND ? 4 : 
+		_cur_signal_type == SIGTYPE_PBS ? 5 :
+		_cur_signal_type == SIGTYPE_PBS_ONEWAY ? 6 : _cur_signal_type;
 	ResetSignalVariant();
 }

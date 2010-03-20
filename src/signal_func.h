@@ -11,7 +11,7 @@
 
 #ifndef SIGNAL_FUNC_H
 #define SIGNAL_FUNC_H
-
+#include "signal_type.h"
 #include "track_type.h"
 #include "tile_type.h"
 #include "direction_type.h"
@@ -45,6 +45,55 @@ static inline byte SignalOnTrack(Track track)
 {
 	extern const byte _signal_on_track[TRACK_END];
 	return _signal_on_track[track];
+}
+
+/// Is a given signal type a presignal entry signal?
+static inline bool IsEntrySignal(SignalType type)
+{
+	return type == SIGTYPE_ENTRY || type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+}
+
+/// Is a given signal type a presignal exit signal?
+static inline bool IsExitSignal(SignalType type)
+{
+	return type == SIGTYPE_EXIT || type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+}
+
+/// Is a given signal type a presignal combo signal?
+static inline bool IsComboSignal(SignalType type)
+{
+	return type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+}
+
+/// Is a given signal type a PBS signal?
+static inline bool IsPbsSignal(SignalType type)
+{
+	return type == SIGTYPE_PBS || type == SIGTYPE_PBS_ONEWAY;
+}
+
+/// Does a given signal have a PBS sprite?
+static inline bool IsSignalSpritePBS(SignalType type)
+{
+	return type >= SIGTYPE_FIRST_PBS_SPRITE;
+}
+
+static inline SignalType NextSignalType(SignalType cur, uint which_signals)
+{
+	bool pbs   = (which_signals != 1);
+	bool block = (which_signals != 2);
+	
+	switch(cur) {
+		case SIGTYPE_NORMAL:     return block ? SIGTYPE_ENTRY      : SIGTYPE_PBS;
+		case SIGTYPE_ENTRY:      return block ? SIGTYPE_EXIT       : SIGTYPE_PBS;
+		case SIGTYPE_EXIT:       return block ? SIGTYPE_COMBO      : SIGTYPE_PBS;
+		case SIGTYPE_COMBO:      return block ? SIGTYPE_NAND       : SIGTYPE_PBS;
+		case SIGTYPE_NAND:       return pbs   ? SIGTYPE_PBS        : SIGTYPE_NORMAL;
+		case SIGTYPE_PBS:        return pbs   ? SIGTYPE_PBS_ONEWAY : SIGTYPE_NORMAL;
+		case SIGTYPE_PBS_ONEWAY: return block ? SIGTYPE_NORMAL     : SIGTYPE_PBS;
+		default: 
+			assert(!"Attempt to cycle invalid signal type"); 
+			return SIGTYPE_NORMAL; // Fortunately mostly harmless
+	}
 }
 
 /** State of the signal segment */

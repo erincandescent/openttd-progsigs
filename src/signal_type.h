@@ -24,11 +24,12 @@ enum SignalType {
 	SIGTYPE_NORMAL     = 0, ///< normal signal
 	SIGTYPE_ENTRY      = 1, ///< presignal block entry
 	SIGTYPE_EXIT       = 2, ///< presignal block exit
-	SIGTYPE_COMBO      = 3, ///< presignal inter-block
+	SIGTYPE_COMBO      = 3, ///< presignal combo inter-block
 	SIGTYPE_PBS        = 4, ///< normal pbs signal
 	SIGTYPE_PBS_ONEWAY = 5, ///< no-entry signal
-	SIGTYPE_LAST       = SIGTYPE_PBS_ONEWAY,
-	SIGTYPE_LAST_NOPBS = SIGTYPE_COMBO
+	SIGTYPE_NAND       = 6, ///< presignal nand inter-block
+	SIGTYPE_LAST       = SIGTYPE_NAND,
+	SIGTYPE_FIRST_PBS_SPRITE = SIGTYPE_PBS
 };
 
 

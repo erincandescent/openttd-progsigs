@@ -444,6 +444,7 @@ const SettingDesc _settings[] = {
 	 SDT_CONDVAR(GameSettings, economy.larger_towns,                 SLE_UINT8, 54, SL_MAX_VERSION, 0, D0,    4,     0,     255, 1, STR_CONFIG_SETTING_LARGER_TOWNS,           NULL),
 	 SDT_CONDVAR(GameSettings, economy.initial_city_size,            SLE_UINT8, 56, SL_MAX_VERSION, 0, 0,     2,     1,      10, 1, STR_CONFIG_SETTING_CITY_SIZE_MULTIPLIER,   NULL),
 	SDT_CONDBOOL(GameSettings, economy.mod_road_rebuild,                        77, SL_MAX_VERSION, 0, 0,  true,                    STR_CONFIG_SETTING_MODIFIED_ROAD_REBUILD,  NULL),
+	 SDT_CONDVAR(GameSettings, construction.maximum_nand_changes,   SLE_UINT16,141, SL_MAX_VERSION, 0, 0,   256,    64,    4096, 1, STR_CONFIG_SETTING_MAX_NAND_CHANGES,       NULL),
 
 	SDT_CONDNULL(1, 0, 106), // previously ai-new setting.
 	    SDT_BOOL(GameSettings, ai.ai_in_multiplayer,                                                0, 0, true,                     STR_CONFIG_SETTING_AI_IN_MULTIPLAYER,      NULL),
