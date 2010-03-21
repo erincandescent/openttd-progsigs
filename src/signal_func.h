@@ -51,19 +51,19 @@ static inline byte SignalOnTrack(Track track)
 /// Is a given signal type a presignal entry signal?
 static inline bool IsEntrySignal(SignalType type)
 {
-	return type == SIGTYPE_ENTRY || type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+	return type == SIGTYPE_ENTRY || type == SIGTYPE_COMBO || type == SIGTYPE_PROG;
 }
 
 /// Is a given signal type a presignal exit signal?
 static inline bool IsExitSignal(SignalType type)
 {
-	return type == SIGTYPE_EXIT || type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+	return type == SIGTYPE_EXIT || type == SIGTYPE_COMBO || type == SIGTYPE_PROG;
 }
 
 /// Is a given signal type a presignal combo signal?
 static inline bool IsComboSignal(SignalType type)
 {
-	return type == SIGTYPE_COMBO || type == SIGTYPE_NAND;
+	return type == SIGTYPE_COMBO || type == SIGTYPE_PROG;
 }
 
 /// Is a given signal type a PBS signal?
@@ -87,8 +87,8 @@ static inline SignalType NextSignalType(SignalType cur, uint which_signals)
 		case SIGTYPE_NORMAL:     return block ? SIGTYPE_ENTRY      : SIGTYPE_PBS;
 		case SIGTYPE_ENTRY:      return block ? SIGTYPE_EXIT       : SIGTYPE_PBS;
 		case SIGTYPE_EXIT:       return block ? SIGTYPE_COMBO      : SIGTYPE_PBS;
-		case SIGTYPE_COMBO:      return block ? SIGTYPE_NAND       : SIGTYPE_PBS;
-		case SIGTYPE_NAND:       return pbs   ? SIGTYPE_PBS        : SIGTYPE_NORMAL;
+		case SIGTYPE_COMBO:      return block ? SIGTYPE_PROG       : SIGTYPE_PBS;
+		case SIGTYPE_PROG:       return pbs   ? SIGTYPE_PBS        : SIGTYPE_NORMAL;
 		case SIGTYPE_PBS:        return pbs   ? SIGTYPE_PBS_ONEWAY : SIGTYPE_NORMAL;
 		case SIGTYPE_PBS_ONEWAY: return block ? SIGTYPE_NORMAL     : SIGTYPE_PBS;
 		default: 

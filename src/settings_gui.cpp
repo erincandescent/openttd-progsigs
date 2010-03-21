@@ -1312,7 +1312,7 @@ static SettingEntry _settings_construction_signals[] = {
 	SettingEntry("gui.semaphore_build_before"),
 	SettingEntry("gui.default_signal_type"),
 	SettingEntry("gui.cycle_signal_types"),
-	SettingEntry("construction.maximum_nand_changes"),
+	SettingEntry("construction.maximum_signal_evaluations"),
 };
 /** Signals subpage */
 static SettingsPage _settings_construction_signals_page = {_settings_construction_signals, lengthof(_settings_construction_signals)};

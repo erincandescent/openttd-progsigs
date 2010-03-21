@@ -27,8 +27,8 @@ enum SignalType {
 	SIGTYPE_COMBO      = 3, ///< presignal combo inter-block
 	SIGTYPE_PBS        = 4, ///< normal pbs signal
 	SIGTYPE_PBS_ONEWAY = 5, ///< no-entry signal
-	SIGTYPE_NAND       = 6, ///< presignal nand inter-block
-	SIGTYPE_LAST       = SIGTYPE_NAND,
+	SIGTYPE_PROG       = 6, ///< programmable presignal
+	SIGTYPE_LAST       = SIGTYPE_PROG,
 	SIGTYPE_FIRST_PBS_SPRITE = SIGTYPE_PBS
 };
 

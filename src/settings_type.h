@@ -187,7 +187,7 @@ struct ConstructionSettings {
 	uint8  raw_industry_construction;        ///< type of (raw) industry construction (none, "normal", prospecting)
 	bool   freeform_edges;                   ///< allow terraforming the tiles at the map edges
 	uint8  extra_tree_placement;             ///< (dis)allow building extra trees in-game
-	uint16 maximum_nand_changes;             ///< maximum number of NAND signals to permit to change at once
+	uint16 maximum_signal_evaluations;       ///< maximum number of programmable signals which may be evaluated in one pass
 };
 
 /** Settings related to the AI. */
