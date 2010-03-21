@@ -1129,7 +1129,7 @@ STR_CONFIG_SETTING_STOP_ON_COMPETITOR_ROAD                      :{LTBLUE}Allow d
 STR_CONFIG_SETTING_ADJACENT_STATIONS                            :{LTBLUE}Allow building adjacent stations: {ORANGE}{STRING}
 STR_CONFIG_SETTING_DYNAMIC_ENGINES                              :{LTBLUE}Enable multiple NewGRF engine sets: {ORANGE}{STRING}
 STR_CONFIG_SETTING_DYNAMIC_ENGINES_EXISTING_VEHICLES            :{WHITE}Changing this setting is not possible when there are vehicles.
-STR_CONFIG_SETTING_MAX_NAND_CHANGES															:{LTBLUE}Maximum number of NAND signals permitted to change at once: {ORANGE}{STRING}
+STR_CONFIG_SETTING_MAX_NAND_CHANGES                             :{LTBLUE}Maximum number of NAND signals permitted to change at once: {ORANGE}{STRING}
 
 STR_CONFIG_SETTING_NEVER_EXPIRE_AIRPORTS                        :{LTBLUE}Airports never expire: {ORANGE}{STRING1}
 
