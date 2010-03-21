@@ -35,6 +35,7 @@
 #include "town.h"
 #include "pbs.h"
 #include "company_base.h"
+#include "programmable_signals.h"
 
 #include "table/strings.h"
 #include "table/sprites.h"
@@ -998,6 +999,8 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 						sigtype = GetSignalType(tile, track);
 					} else {
 						/* convert the present signal to the chosen type and variant */
+						if(IsPresignalProgrammable(tile, track))
+							FreeSignalProgram(tile, track);
 						SetSignalType(tile, track, sigtype);
 						SetSignalVariant(tile, track, sigvar);
 						if (IsPbsSignal(sigtype) && (GetPresentSignals(tile) & SignalOnTrack(track)) == SignalOnTrack(track)) {
@@ -1008,8 +1011,10 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 				} else if (ctrl_pressed) {
 					/* cycle through signal types */
 					sigtype = (SignalType)(GetSignalType(tile, track));
+					if(IsProgrammableSignal(sigtype))
+						FreeSignalProgram(tile, track);
+					
 					sigtype = NextSignalType(sigtype, which_signals);
-
 					SetSignalType(tile, track, sigtype);
 					if (IsPbsSignal(sigtype) && (GetPresentSignals(tile) & SignalOnTrack(track)) == SignalOnTrack(track)) {
 						SetPresentSignals(tile, (GetPresentSignals(tile) & ~SignalOnTrack(track)) | KillFirstBit(SignalOnTrack(track)));
@@ -1026,6 +1031,8 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 			 * direction of the first signal given as parameter by CmdBuildManySignals */
 			SetPresentSignals(tile, (GetPresentSignals(tile) & ~SignalOnTrack(track)) | (p2 & SignalOnTrack(track)));
 			SetSignalVariant(tile, track, sigvar);
+			if(IsPresignalProgrammable(tile, track))
+				FreeSignalProgram(tile, track);
 			SetSignalType(tile, track, sigtype);
 		}
 

@@ -72,6 +72,12 @@ static inline bool IsPbsSignal(SignalType type)
 	return type == SIGTYPE_PBS || type == SIGTYPE_PBS_ONEWAY;
 }
 
+/// Is this a programmable signal?
+static inline bool IsProgrammableSignal(SignalType type)
+{
+	return type == SIGTYPE_PROG;
+}
+
 /// Does a given signal have a PBS sprite?
 static inline bool IsSignalSpritePBS(SignalType type)
 {

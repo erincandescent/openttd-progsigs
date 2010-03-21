@@ -13,12 +13,29 @@
 #define PROGRAMMABLE_SIGNALS_H
 #include "strings.h"
 #include "rail_map.h"
+#include "core/smallvec_type.hpp"
+#include <map>
 
 /** The Programmable Signal virtual machine.
  *
  * This structure contains the state of the currently executing signal program.
  */
 struct SignalVM;
+
+class SignalInstruction;
+class SignalSpecial;
+typedef SmallVector<SignalInstruction*, 4> InstructionList;
+
+/** The actual programmable signal information */
+struct SignalProgram {
+	SignalProgram(bool raw = false);
+	~SignalProgram();
+	void DebugPrintProgram();
+	
+	SignalSpecial* first_instruction;
+	SignalSpecial* last_instruction;
+	InstructionList instructions;
+};
 
 /** Programmable Signal opcode.
  *
@@ -33,6 +50,8 @@ enum SignalOpcode {
 	PSO_IF_ELSE    = 3,     ///< If Else pseudo instruction
 	PSO_IF_ENDIF   = 4,     ///< If Endif pseudo instruction
 	PSO_SET_SIGNAL = 5,     ///< Set signal instruction
+	
+	PSO_INVALID   = 0xFF
 };
 
 /** Signal instruction base class. All instructions must derive from this. */
@@ -44,6 +63,10 @@ public:
 	/// Get the previous instruction. If this is NULL, then this is the first
 	/// instruction.
 	inline SignalInstruction* Previous() const { return this->previous; }
+	
+	/// Get the Id of this instruction
+	inline int Id() const 
+	{ return program->instructions.FindIndex(const_cast<SignalInstruction*>(this)); }
 	
 	/// Insert this instruction, placing it before @p before_insn
 	virtual void Insert(SignalInstruction* before_insn);
@@ -59,9 +82,13 @@ public:
 	/// </ul>
 	virtual void Remove() = 0;
 	
+	/// For the saveload code. Don't use.
+	inline SignalInstruction*& GetPrevHandle()
+	{ return previous; }
+	
 protected:
-	inline SignalInstruction(SignalOpcode op) : opcode(op), previous(NULL) {}
-	inline ~SignalInstruction() {}
+	SignalInstruction(SignalProgram* prog, SignalOpcode op) ;
+	~SignalInstruction();
 	
 	/// Set the next instruction. This should only be called by instructions
 	/// manipulating their own position.
@@ -77,6 +104,7 @@ protected:
 
 	const SignalOpcode opcode;
 	SignalInstruction* previous;
+	SignalProgram* program;
 };
 
 /** Programmable Signal condition code.
@@ -123,7 +151,7 @@ class SignalSimpleCondition: public SignalCondition {
 /** The special start and end pseudo instructions */
 class SignalSpecial: public SignalInstruction {
 public:
-	SignalSpecial(SignalOpcode op);
+	SignalSpecial(SignalProgram* prog, SignalOpcode op);
 	
 	virtual void Evaluate(SignalVM& vm);
 	
@@ -131,9 +159,9 @@ public:
 	
 	virtual void Remove();
 	
+	SignalInstruction* next;
 protected:
 	virtual void SetNext(SignalInstruction* next_insn);
-	SignalInstruction* next;
 };
 
 /** If signal instruction. This is perhaps the most important, as without it,
@@ -143,35 +171,34 @@ protected:
  */
 class SignalIf: public SignalInstruction {
 public:
+	/** The If-Else and If-Endif pseudo instructions. The Else instruction 
+	 * follows the Then block, and the Endif instruction follows the Else block.
+	 *
+	 * These serve two purposes:
+	 * <ul>
+	 *  <li>They correctly vector the execution to after the if block 
+	 *      (if needed)
+	 *  <li>They provide an instruction for the GUI to insert other instructions
+	 *      before.
+	 * </ul>
+	 */
 	class PseudoInstruction: public SignalInstruction {
-		friend class SignalIf;
-	private:
-		/** The If-Else and If-Endif pseudo instructions. The Else instruction 
-		 * follows the Then block, and the Endif instruction follows the Else block.
-		 *
-		 * These serve two purposes:
-		 * <ul>
-		 *  <li>They correctly vector the execution to after the if block 
-		 *      (if needed)
-		 *  <li>They provide an instruction for the GUI to insert other instructions
-		 *      before.
-		 * </ul>
-		 */
-		PseudoInstruction(SignalIf* block, SignalOpcode op);
-		virtual void Remove();
-		
 	public:
+		/// Normal constructor
+		PseudoInstruction(SignalProgram* prog, SignalIf* block, SignalOpcode op);
+		/// Load constructor
+		PseudoInstruction(SignalProgram* prog, SignalOpcode op);
+		virtual void Remove();
 		virtual void Evaluate(SignalVM& vm);
+		
+		SignalIf* block;
 		
 	protected:
 		virtual void SetNext(SignalInstruction* next_insn);
-		
-	private:
-		SignalIf* block;
 	};
 	
 public:
-	SignalIf();
+	SignalIf(SignalProgram* prog, bool raw = false);
 	void SetCondition(SignalCondition* cond);
 	virtual void Evaluate(SignalVM& vm);
 	virtual void Insert(SignalInstruction* before_insn);
@@ -189,7 +216,7 @@ protected:
 /** Set signal instruction. This sets the state of the signal and terminates execution */
 class SignalSet: public SignalInstruction {
 public:
-	SignalSet(bool state = false);
+	SignalSet(SignalProgram* prog, bool state = false);
 	virtual void Evaluate(SignalVM& vm);
 	virtual void Remove();
 	
@@ -201,16 +228,21 @@ protected:
 	virtual void SetNext(SignalInstruction* next_insn);
 };
 
-/** The actual programmable signal information */
-struct SignalProgram {
-	SignalProgram();
-	~SignalProgram();
-	
-	SignalSpecial* first_instruction;
-	SignalSpecial* last_instruction;
-};
+typedef std::map<uint32, SignalProgram*> ProgramList;
+extern ProgramList _signal_programs;
+
+static inline bool HasProgrammableSignals(uint signalId)
+{
+	TileIndex tile = GB(signalId, 1, 31);
+	if(GetRailTileType(tile) != RAIL_TILE_SIGNALS)
+		return false;
+	byte pos = GB(signalId, 0, 1) ? 4 : 0;
+	return (SignalType)GB(_m[tile].m2, pos, 3) == SIGTYPE_PROG;
+}
 
 SignalProgram* GetSignalProgram(TileIndex t, Track track);
+SignalProgram* GetSignalProgram(uint32 id);
+void FreeSignalProgram(uint32 id);
 void FreeSignalProgram(TileIndex t, Track track);
 bool RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green);
 

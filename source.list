@@ -482,6 +482,7 @@ saveload/subsidy_sl.cpp
 saveload/town_sl.cpp
 saveload/vehicle_sl.cpp
 saveload/waypoint_sl.cpp
+saveload/signal_sl.cpp
 
 # Tables
 table/airport_defaults.h
