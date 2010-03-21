@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "programmable_signals.h"
 #include "debug.h"
+#include "command_type.h"
+#include "table/strings.h"
 #include <map>
 
 ProgramList _signal_programs;
@@ -248,14 +250,6 @@ SignalSet::SignalSet(SignalProgram* prog, bool state)
 	this->next = next_insn;
 }
 
-static uint32 GetSignalId(TileIndex t, Track track)
-{
-	assert(GetRailTileType(t) == RAIL_TILE_SIGNALS);
-	uint second_track  = (track == TRACK_LOWER || track == TRACK_RIGHT) ? 1 : 0;
-	uint32 signal_id   = (t << 1) | second_track;
-	return signal_id;
-}
-
 SignalProgram* GetSignalProgram(TileIndex t, Track track)
 {
 	return GetSignalProgram(GetSignalId(t, track));
@@ -284,6 +278,8 @@ SignalProgram* GetSignalProgram(uint32 signal_id)
 		pr->DebugPrintProgram();
 		
 		_signal_programs[signal_id] = pr;
+
+		ShowSignalProgramWindow(signal_id >> 1, signal_id & 1 ? TRACK_LOWER : TRACK_X);
 		return pr;
 	}
 }
@@ -335,4 +331,55 @@ void SignalProgram::DebugPrintProgram()
 		DEBUG(misc, 5, " %d: Opcode %d, prev %d", i - b, insn->Opcode(), 
 					insn->Previous() ? insn->Previous()->Id() : -1);
 	}
+}
+
+/** Insert a signal instruction into the signal program.
+ *
+ * @param tile The Tile on which to perform the operation
+ * @param p1 Flags and information
+ *   - Bit  0      Which signal on tile to perform operation on (Corresponds to bit 0 of signal IDs)
+ *   - Bits 1-16   ID of instruction to insert before
+ *   - Bits 17-25  Which opcode to create
+ *   - Bits 26-31  Reserved
+ * @param p2 Depends upon instruction
+ *   - PSO_SET_SIGNAL:
+ *       - Colour to set the signal to
+ * @param text unused
+ */
+CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	uint32 signal_id    = tile << 1 | GB(p1, 0, 1);
+	uint instruction_id = GB(p1, 1, 16);
+	SignalOpcode op     = (SignalOpcode) GB(p1, 17, 8);
+	
+	SignalProgram *prog = GetSignalProgram(signal_id);
+	if(instruction_id > prog->instructions.Length())
+		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+
+	if(!flags & DC_EXEC)
+		return CommandCost();
+	
+	SignalInstruction *insert_before = prog->instructions[instruction_id];
+	switch(op) {
+		case PSO_IF: {
+			SignalIf *if_ins = new SignalIf(prog);
+			if_ins->Insert(insert_before);
+			break;
+		}
+		
+		case PSO_SET_SIGNAL: {
+			SignalSet *set = new SignalSet(prog, p2);
+			set->Insert(insert_before);
+			break;
+		}
+		
+		case PSO_FIRST:
+		case PSO_LAST:
+		case PSO_IF_ELSE:
+		case PSO_IF_ENDIF:
+		default:
+			return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+	}
+	
+	return CommandCost();
 }

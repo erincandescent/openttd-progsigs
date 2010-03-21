@@ -186,6 +186,7 @@ CommandProc CmdSetVehicleOnTime;
 CommandProc CmdAutofillTimetable;
 CommandProc CmdSetTimetableStart;
 
+CommandProc CmdInsertSignalInstruction;
 /**
  * The master command table
  *
@@ -329,6 +330,8 @@ static const Command _command_proc_table[] = {
 	{CmdSetVehicleOnTime,                           0}, // CMD_SET_VEHICLE_ON_TIME
 	{CmdAutofillTimetable,                          0}, // CMD_AUTOFILL_TIMETABLE
 	{CmdSetTimetableStart,                          0}, // CMD_SET_TIMETABLE_START
+	
+	{CmdInsertSignalInstruction,                    0}, // CMD_INSERT_SIGNAL_INSTRUCTION
 };
 
 /*!

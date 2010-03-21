@@ -58,6 +58,7 @@ screenshot.cpp
 settings.cpp
 signal.cpp
 programmable_signals.cpp
+programmable_signals_gui.cpp
 signs.cpp
 sound.cpp
 sprite.cpp

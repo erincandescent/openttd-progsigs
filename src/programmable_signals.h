@@ -51,6 +51,7 @@ enum SignalOpcode {
 	PSO_IF_ENDIF   = 4,     ///< If Endif pseudo instruction
 	PSO_SET_SIGNAL = 5,     ///< Set signal instruction
 	
+	PSO_MAX       = PSO_SET_SIGNAL,
 	PSO_INVALID   = 0xFF
 };
 
@@ -240,6 +241,15 @@ static inline bool HasProgrammableSignals(uint signalId)
 	return (SignalType)GB(_m[tile].m2, pos, 3) == SIGTYPE_PROG;
 }
 
+static inline uint32 GetSignalId(TileIndex t, Track track)
+{
+	assert(GetRailTileType(t) == RAIL_TILE_SIGNALS);
+	uint second_track  = (track == TRACK_LOWER || track == TRACK_RIGHT) ? 1 : 0;
+	uint32 signal_id   = (t << 1) | second_track;
+	return signal_id;
+}
+
+void ShowSignalProgramWindow(TileIndex tile, Track track);
 SignalProgram* GetSignalProgram(TileIndex t, Track track);
 SignalProgram* GetSignalProgram(uint32 id);
 void FreeSignalProgram(uint32 id);
