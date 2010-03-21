@@ -1312,6 +1312,7 @@ static SettingEntry _settings_construction_signals[] = {
 	SettingEntry("gui.semaphore_build_before"),
 	SettingEntry("gui.default_signal_type"),
 	SettingEntry("gui.cycle_signal_types"),
+	SettingEntry("construction.maximum_nand_changes"),
 };
 /** Signals subpage */
 static SettingsPage _settings_construction_signals_page = {_settings_construction_signals, lengthof(_settings_construction_signals)};
@@ -1325,7 +1326,6 @@ static SettingEntry _settings_construction[] = {
 	SettingEntry("station.never_expire_airports"),
 	SettingEntry("construction.freeform_edges"),
 	SettingEntry("construction.extra_tree_placement"),
-	SettingEntry("construction.maximum_nand_changes"),
 };
 /** Construction sub-page */
 static SettingsPage _settings_construction_page = {_settings_construction, lengthof(_settings_construction)};

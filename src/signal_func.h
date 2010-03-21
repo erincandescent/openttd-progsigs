@@ -16,6 +16,7 @@
 #include "tile_type.h"
 #include "direction_type.h"
 #include "company_type.h"
+#include "debug.h"
 
 /**
  * Maps a trackdir to the bit that stores its status in the map arrays, in the
@@ -79,8 +80,8 @@ static inline bool IsSignalSpritePBS(SignalType type)
 
 static inline SignalType NextSignalType(SignalType cur, uint which_signals)
 {
-	bool pbs   = (which_signals != 1);
-	bool block = (which_signals != 2);
+	bool pbs   = (which_signals != 0);
+	bool block = (which_signals != 1);
 	
 	switch(cur) {
 		case SIGTYPE_NORMAL:     return block ? SIGTYPE_ENTRY      : SIGTYPE_PBS;
@@ -91,7 +92,7 @@ static inline SignalType NextSignalType(SignalType cur, uint which_signals)
 		case SIGTYPE_PBS:        return pbs   ? SIGTYPE_PBS_ONEWAY : SIGTYPE_NORMAL;
 		case SIGTYPE_PBS_ONEWAY: return block ? SIGTYPE_NORMAL     : SIGTYPE_PBS;
 		default: 
-			assert(!"Attempt to cycle invalid signal type"); 
+			DEBUG(map, 0, "Attempt to cycle from signal type %d", cur);
 			return SIGTYPE_NORMAL; // Fortunately mostly harmless
 	}
 }

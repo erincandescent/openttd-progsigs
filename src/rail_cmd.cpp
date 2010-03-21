@@ -1019,8 +1019,8 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 					}
 
 				} else if (ctrl_pressed) {
-					/* cycle between cycle_start and cycle_end */
-					sigtype = (SignalType)(GetSignalType(tile, track) + 1);
+					/* cycle through signal types */
+					sigtype = (SignalType)(GetSignalType(tile, track));
 					sigtype = NextSignalType(sigtype, which_signals);
 
 					SetSignalType(tile, track, sigtype);
