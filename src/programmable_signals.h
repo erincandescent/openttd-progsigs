@@ -114,10 +114,12 @@ protected:
  * discriminates instructions.
  */
 enum SignalConditionCode {
-	PSC_ANYGREEN = 0,	///< If there are any green signals behind this signal
-	PSC_ANYRED = 1,   ///< If there are any red signals behind this signal
-	PSC_ALWAYS = 2,   ///< Always true
-	PSC_NEVER = 3,    ///< Always false
+	PSC_ALWAYS = 0,     ///< Always true
+	PSC_NEVER = 1,      ///< Always false
+	PSC_NUM_GREEN = 2,  ///< Number of green signals behind this signal
+	PSC_NUM_RED = 3,    ///< Number of red signals behind this signal
+	
+	PSC_MAX = PSC_NUM_RED
 };
 
 class SignalCondition {
@@ -144,6 +146,34 @@ protected:
 class SignalSimpleCondition: public SignalCondition {
 	public:
 		SignalSimpleCondition(SignalConditionCode code);
+		virtual bool Evaluate(SignalVM& vm);
+};
+
+enum SignalComparator {
+	SGC_EQUALS = 0,
+	SGC_NOT_EQUALS = 1,
+	SGC_LESS_THAN = 2,
+	SGC_LESS_THAN_EQUALS = 3,
+	SGC_MORE_THAN = 4,
+	SGC_MORE_THAN_EQUALS = 5,
+	SGC_IS_TRUE = 6,
+	SGC_IS_FALSE = 7,
+	
+	SGC_LAST = SGC_IS_FALSE
+};
+
+enum SignalConditionField {
+	SCF_COMPARATOR = 0,
+	SCF_VALUE = 1,
+};
+
+class SignalVariableCondition: public SignalCondition {
+	public:
+		SignalVariableCondition(SignalConditionCode code);
+		
+		SignalComparator comparator;
+		uint32 value;
+		
 		virtual bool Evaluate(SignalVM& vm);
 };
 
@@ -241,11 +271,15 @@ static inline bool HasProgrammableSignals(uint signalId)
 	return (SignalType)GB(_m[tile].m2, pos, 3) == SIGTYPE_PROG;
 }
 
+static inline byte IsSecondSignal(Track track)
+{
+	return (track == TRACK_LOWER || track == TRACK_RIGHT) ? 1 : 0;
+}
+
 static inline uint32 GetSignalId(TileIndex t, Track track)
 {
 	assert(GetRailTileType(t) == RAIL_TILE_SIGNALS);
-	uint second_track  = (track == TRACK_LOWER || track == TRACK_RIGHT) ? 1 : 0;
-	uint32 signal_id   = (t << 1) | second_track;
+	uint32 signal_id   = (t << 1) | IsSecondSignal(track);
 	return signal_id;
 }
 

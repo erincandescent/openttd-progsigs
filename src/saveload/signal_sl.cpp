@@ -49,11 +49,35 @@ static uint ReadVLI()
 static void WriteCondition(Buffer& b, SignalCondition* c)
 {
 	WriteVLI(b, c->ConditionCode());
+	switch(c->ConditionCode()) {
+		case PSC_NUM_GREEN:
+		case PSC_NUM_RED: {
+			SignalVariableCondition* vc = static_cast<SignalVariableCondition*>(c);
+			WriteVLI(b, vc->comparator);
+			WriteVLI(b, vc->value);
+			break;
+		}
+		
+		default:
+			break;
+	}
 }
 
 static SignalCondition* ReadCondition()
 {
-	return new SignalSimpleCondition((SignalConditionCode) ReadVLI());
+	SignalConditionCode code = (SignalConditionCode) ReadVLI();
+	switch(code) {
+		case PSC_NUM_GREEN:
+		case PSC_NUM_RED: {
+			SignalVariableCondition* c = new SignalVariableCondition(code);
+			c->comparator = (SignalComparator) ReadVLI();
+			if(c->comparator > SGC_LAST) NOT_REACHED();
+			c->value = ReadVLI();
+			return c;
+		}
+		default:
+			return new SignalSimpleCondition(code);
+	}
 }
 
 static void Save_SPRG()

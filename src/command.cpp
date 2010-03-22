@@ -187,6 +187,9 @@ CommandProc CmdAutofillTimetable;
 CommandProc CmdSetTimetableStart;
 
 CommandProc CmdInsertSignalInstruction;
+CommandProc CmdModifySignalInstruction;
+CommandProc CmdRemoveSignalInstruction;
+
 /**
  * The master command table
  *
@@ -332,6 +335,8 @@ static const Command _command_proc_table[] = {
 	{CmdSetTimetableStart,                          0}, // CMD_SET_TIMETABLE_START
 	
 	{CmdInsertSignalInstruction,                    0}, // CMD_INSERT_SIGNAL_INSTRUCTION
+	{CmdModifySignalInstruction,                    0}, // CMD_MODIFY_SIGNAL_INSTRUCTION
+	{CmdRemoveSignalInstruction,                    0}, // CMD_REMOVE_SIGNAL_INSTRUCTION
 };
 
 /*!

@@ -1945,24 +1945,45 @@ STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_DECREASE_TOOLTIP          :{BLACK}Decrease
 STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_INCREASE_TOOLTIP          :{BLACK}Increase dragging signal density
 
 # Programmable Signals
+STR_PROGRAM_SIGNAL_TOOLTIP                                      :{BLACK}Program signal
+
 STR_ERR_PROGSIG_INVALID_INSTRUCTION                             :{WHITE}Cannot insert instruction after instruction with invalid ID
 STR_ERR_PROGSIG_INVALID_OPCODE                                  :{WHITE}Cannot insert an instruction of that opcode
 
 STR_PROGSIG_CAPTION                                             :{WHITE}Signal Program
+STR_PROGSIG_COND_VARIABLE_TOOLTIP                               :{BLACK}Condition to compare upon
+STR_PROGSIG_COND_COMPARATOR_TOOLTIP                             :{BLACK}Operator to use to compare variable
+STR_PROGSIG_COND_VALUE_TOOLTIP                                  :{BLACK}Value to compare variable against
+STR_PROGSIG_SIGNAL_STATE_TOOLTIP                                :{BLACK}Set signal to state
+STR_PROGSIG_GOTO_SIGNAL_TOOLTIP                                 :{BLACK}Go to this signal
+STR_PROGSIG_INSERT_TOOLTIP                                      :{BLACK}Insert an instruction
+STR_PROGSIG_REMOVE_TOOLTIP                                      :{BLACK}Remove the selected instruction
 
-STR_PROGSIG_FIRST                                               :{BLACK}Start
-STR_PROGSIG_LAST                                                :{BLACK}End
+STR_PROGSIG_REMOVE                                              :{BLACK}Remove
+STR_PROGSIG_INSERT                                              :Insert
+STR_PROGSIG_INSERT_IF                                           :Condition
+STR_PROGSIG_INSERT_SET_SIGNAL                                   :Set signal state
 
-STR_PROGSIG_IF                                                  :{BLACK}If {RAW_STRING} Then
-STR_PROGSIG_ELSE                                                :{BLACK}Else
-STR_PROGSIG_ENDIF                                               :{BLACK}End If
+STR_PROGSIG_FIRST                                               :Start
+STR_PROGSIG_LAST                                                :End
 
-STR_PROGSIG_SET_SIGNAL                                          :{BLACK}Make signal {STRING}
+STR_PROGSIG_IF                                                  :If {RAW_STRING} Then
+STR_PROGSIG_ELSE                                                :Else
+STR_PROGSIG_ENDIF                                               :End If
+
+STR_PROGSIG_SET_SIGNAL                                          :Make signal {STRING}
 
 STR_PROGSIG_COND_ALWAYS                                         :always
 STR_PROGSIG_COND_NEVER                                          :never
-STR_PROGSIG_COND_ANY_RED                                        :any red signals
-STR_PROGSIG_COND_ANY_GREEN                                      :any green signals
+STR_PROGSIG_COND_COMPARE                                        :{STRING} {STRING} {NUM}
+STR_PROGSIG_CONDVAR_NUM_RED                                     :red signals
+STR_PROGSIG_CONDVAR_NUM_GREEN                                   :green signals
+
+STR_PROGSIG_CONDITION_VALUE_CAPT                                :{WHITE}Conditon value
+
+STR_ERROR_CAN_T_INSERT_INSTRUCTION                              :{WHITE}Can't insert instruction
+STR_ERROR_CAN_T_MODIFY_INSTRUCTION                              :{WHITE}Can't modify instruction
+STR_ERROR_CAN_T_REMOVE_INSTRUCTION                              :{WHITE}Can't remove instruction
 
 # Bridge selection window
 STR_SELECT_RAIL_BRIDGE_CAPTION                                  :{WHITE}Select Rail Bridge

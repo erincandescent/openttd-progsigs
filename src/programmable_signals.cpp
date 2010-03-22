@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "command_type.h"
 #include "table/strings.h"
+#include "window_func.h"
 #include <map>
 
 ProgramList _signal_programs;
@@ -52,10 +53,6 @@ struct SignalVM {
 SignalCondition::~SignalCondition()
 {}
 
-#define COND_DEBUG(cond, val) \
-	{ DEBUG(misc, 7, "  Condition " #cond " is %s", (val ? "true" : "false")); \
-	  return val; }
-
 SignalSimpleCondition::SignalSimpleCondition(SignalConditionCode code)
 	: SignalCondition(code)
 {}
@@ -63,11 +60,41 @@ SignalSimpleCondition::SignalSimpleCondition(SignalConditionCode code)
 /* virtual */ bool SignalSimpleCondition::Evaluate(SignalVM& vm)
 {
 	switch (this->cond_code) {
-		case PSC_ANYGREEN:  COND_DEBUG(AnyGreen, vm.num_green);
-		case PSC_ANYRED:    COND_DEBUG(AnyRed, vm.num_exits - vm.num_green);
-		case PSC_ALWAYS:    COND_DEBUG(Always, true);
-		case PSC_NEVER:     COND_DEBUG(Never, false);
+		case PSC_ALWAYS:    return true;
+		case PSC_NEVER:     return false;
 		default: NOT_REACHED();
+	}
+}
+
+SignalVariableCondition::SignalVariableCondition(SignalConditionCode code)
+	: SignalCondition(code)
+{
+	switch(this->cond_code) {
+		case PSC_NUM_GREEN: comparator = SGC_NOT_EQUALS; break;
+		case PSC_NUM_RED:   comparator = SGC_EQUALS; break;
+		default: NOT_REACHED();
+	}
+	value = 0;
+}
+
+/*virtual*/ bool SignalVariableCondition::Evaluate(SignalVM& vm)
+{
+	uint32 var_val;
+	switch(this->cond_code) {
+		case PSC_NUM_GREEN:  var_val = vm.num_green; break;
+		case PSC_NUM_RED:    var_val = vm.num_exits - vm.num_green; break;
+		default: NOT_REACHED();
+	}
+	
+	switch(this->comparator) {
+		case SGC_EQUALS:            return var_val == this->value;
+		case SGC_NOT_EQUALS:        return var_val != this->value;
+		case SGC_LESS_THAN:         return var_val <  this->value;
+		case SGC_LESS_THAN_EQUALS:  return var_val <= this->value;
+		case SGC_MORE_THAN:         return var_val >  this->value;
+		case SGC_MORE_THAN_EQUALS:  return var_val >= this->value;
+		case SGC_IS_TRUE:           return var_val;
+		case SGC_IS_FALSE:          return !var_val;
 	}
 }
 
@@ -264,22 +291,18 @@ SignalProgram* GetSignalProgram(uint32 signal_id)
 		// Converted NAND signal
 		DEBUG(misc, 4, "Programmable signal at tile %x is old NAND, converting", signal_id >> 1);
 		SignalProgram* pr = new SignalProgram();
-		pr->DebugPrintProgram();
 		SignalIf* cond = new SignalIf(pr);
-		cond->SetCondition(new SignalSimpleCondition(PSC_ANYRED));
+		SignalVariableCondition *vc = new SignalVariableCondition(PSC_NUM_RED);
+		cond->SetCondition(vc);
 		cond->Insert(pr->last_instruction);
 		
 		SignalSet* make_green = new SignalSet(pr, true);
 		SignalSet* make_red   = new SignalSet(pr, false);
 		
 		make_green->Insert(cond->if_true);
-		pr->DebugPrintProgram();
 		make_red->Insert(cond->if_false);
-		pr->DebugPrintProgram();
 		
 		_signal_programs[signal_id] = pr;
-
-		ShowSignalProgramWindow(signal_id >> 1, signal_id & 1 ? TRACK_LOWER : TRACK_X);
 		return pr;
 	}
 }
@@ -332,15 +355,14 @@ void SignalProgram::DebugPrintProgram()
 					insn->Previous() ? insn->Previous()->Id() : -1);
 	}
 }
-
 /** Insert a signal instruction into the signal program.
  *
  * @param tile The Tile on which to perform the operation
  * @param p1 Flags and information
- *   - Bit  0      Which signal on tile to perform operation on (Corresponds to bit 0 of signal IDs)
- *   - Bits 1-16   ID of instruction to insert before
- *   - Bits 17-25  Which opcode to create
- *   - Bits 26-31  Reserved
+ *   - Bits 0-4    Track on which signal sits
+ *   - Bits 5-20   ID of instruction to insert before
+ *   - Bits 21-28  Which opcode to create
+ *   - Bits 29-31  Reserved
  * @param p2 Depends upon instruction
  *   - PSO_SET_SIGNAL:
  *       - Colour to set the signal to
@@ -348,26 +370,28 @@ void SignalProgram::DebugPrintProgram()
  */
 CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
 {
-	uint32 signal_id    = tile << 1 | GB(p1, 0, 1);
-	uint instruction_id = GB(p1, 1, 16);
-	SignalOpcode op     = (SignalOpcode) GB(p1, 17, 8);
+	Track track         = (Track) GB(p1, 0, 4);
+	uint32 signal_id    = GetSignalId(tile, track);
+	uint instruction_id = GB(p1, 5, 16);
+	SignalOpcode op     = (SignalOpcode) GB(p1, 21, 8);
 	
 	SignalProgram *prog = GetSignalProgram(signal_id);
 	if(instruction_id > prog->instructions.Length())
 		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
-	if(!flags & DC_EXEC)
-		return CommandCost();
+	bool exec = (flags & DC_EXEC);
 	
 	SignalInstruction *insert_before = prog->instructions[instruction_id];
 	switch(op) {
 		case PSO_IF: {
+			if(!exec) return CommandCost();
 			SignalIf *if_ins = new SignalIf(prog);
 			if_ins->Insert(insert_before);
 			break;
 		}
 		
 		case PSO_SET_SIGNAL: {
+			if(!exec) return CommandCost();
 			SignalSet *set = new SignalSet(prog, p2);
 			set->Insert(insert_before);
 			break;
@@ -381,5 +405,154 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 			return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
 	}
 	
+	if(!exec) return CommandCost();
+	AddTrackToSignalBuffer(tile, track, GetTileOwner(tile));
+	UpdateSignalsInBuffer();
+	InvalidateWindowData(WC_SIGNAL_PROGRAM, signal_id);
+	return CommandCost();
+}
+
+/** Modify a singal instruction
+ *
+ * @param tile The Tile on which to perform the operation
+ * @param p1 Flags and information
+ *   - Bit  0-4    Which track this signal sits on
+ *   - Bits 5-20   Instruction to modify
+ *   - Bits 17-31  Reserved
+ * @param p2 Depends upon instruction
+ *   - PSO_SET_SIGNAL:
+ *       - Colour to set the signal to
+ *   - PSO_IF:
+ *       - Bit 0 If 0, set the condidion code:
+ *         - Bit 1-8:  Conditon code to change to
+ *       - Otherwise:
+ *        - Bits 1-2:  Which field to change (ConditionField)
+ *        - Bits 3-31: Value to set field to
+ * @param text unused
+ */
+CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	Track track         = (Track) GB(p1, 0, 4);
+	uint32 signal_id    = GetSignalId(tile, track);
+	uint instruction_id = GB(p1, 5, 16);
+	
+	SignalProgram *prog = GetSignalProgram(signal_id);
+	if(instruction_id > prog->instructions.Length())
+		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+
+	bool exec = (flags & DC_EXEC);
+	
+	SignalInstruction* insn = prog->instructions[instruction_id];
+	switch(insn->Opcode()) {
+		case PSO_SET_SIGNAL: {
+			if(!exec) return CommandCost();
+			SignalSet *ss = static_cast<SignalSet*>(insn);
+			ss->to_state = p2;
+		} break;
+		
+		case PSO_IF: {
+			SignalIf* si = static_cast<SignalIf*>(insn);
+			byte act = GB(p2, 0, 1);
+			if(act == 0) { // Set code
+				SignalConditionCode code = (SignalConditionCode) GB(p2, 1, 8);
+				if(code > PSC_MAX)
+					return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+				if(!exec) return CommandCost();
+				
+				SignalCondition *cond;
+				switch(code) {
+					case PSC_ALWAYS:
+					case PSC_NEVER:
+						cond = new SignalSimpleCondition(code);
+						break;
+						
+					case PSC_NUM_GREEN:
+					case PSC_NUM_RED:
+						cond = new SignalVariableCondition(code);
+						break;
+				}
+				si->SetCondition(cond);
+			} else { // modify condition
+				switch(si->condition->ConditionCode()) {
+					case PSC_ALWAYS:
+					case PSC_NEVER:
+						return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+						
+					case PSC_NUM_GREEN:
+					case PSC_NUM_RED:
+						SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(si->condition);
+						SignalConditionField f = (SignalConditionField) GB(p2, 1, 2);
+						uint32 val = GB(p2, 3, 27);
+						if(f == SCF_COMPARATOR) {
+							if(val > SGC_LAST) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+							if(!exec) return CommandCost();						
+							vc->comparator = (SignalComparator) val;
+						} else if(f == SCF_VALUE) {
+							if(!exec) return CommandCost();
+							vc->value = val;
+						} else CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+						break;
+				}
+			}
+		} break;
+		
+		case PSO_FIRST:
+		case PSO_LAST:
+		case PSO_IF_ELSE:
+		case PSO_IF_ENDIF:
+		default:
+			return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+	}
+	
+	if(!exec) return CommandCost();
+	
+	AddTrackToSignalBuffer(tile, track, GetTileOwner(tile));
+	UpdateSignalsInBuffer();
+	InvalidateWindowData(WC_SIGNAL_PROGRAM, signal_id);
+	return CommandCost();
+}
+
+/** Remove an instruction from a signal program
+ *
+ * @param tile The Tile on which to perform the operation
+ * @param p1 Flags and information
+ *   - Bits 0-4    Which track the signal sits on
+ *   - Bits 1-16   ID of instruction to insert before
+ *   - Bits 17-31  Reserved
+ * @param p2 unused
+ * @param text unused
+ */
+CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	Track track         = (Track) GB(p1, 0, 4);
+	uint32 signal_id    = GetSignalId(tile, track);
+	uint instruction_id = GB(p1, 5, 16);
+	
+	SignalProgram *prog = GetSignalProgram(signal_id);
+	if(instruction_id > prog->instructions.Length())
+		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+
+	bool exec = (flags & DC_EXEC);
+	
+	SignalInstruction* insn = prog->instructions[instruction_id];
+	switch(insn->Opcode()) {
+		case PSO_SET_SIGNAL:
+		case PSO_IF:
+			if(!exec) return CommandCost();
+			insn->Remove();
+			break;
+		
+		case PSO_FIRST:
+		case PSO_LAST:
+		case PSO_IF_ELSE:
+		case PSO_IF_ENDIF:
+		default:
+			return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+	}
+	
+	if(!exec) return CommandCost();
+	AddTrackToSignalBuffer(tile, track, GetTileOwner(tile));
+	UpdateSignalsInBuffer();
+	InvalidateWindowData(WC_SIGNAL_PROGRAM, signal_id);
 	return CommandCost();
 }

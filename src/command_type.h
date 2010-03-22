@@ -285,6 +285,8 @@ enum {
 	CMD_SET_TIMETABLE_START,          ///< set the date that a timetable should start
 	
 	CMD_INSERT_SIGNAL_INSTRUCTION,    ///< insert a signal instruction
+	CMD_MODIFY_SIGNAL_INSTRUCTION,    ///< modifies a signal instruction
+	CMD_REMOVE_SIGNAL_INSTRUCTION,    ///< removes a signal instruction
 };
 
 /**
