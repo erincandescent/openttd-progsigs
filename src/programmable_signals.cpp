@@ -30,22 +30,36 @@ SignalProgram::SignalProgram(bool raw)
 
 SignalProgram::~SignalProgram()
 {
-	first_instruction->Remove();
+	this->first_instruction->Remove();
+	delete this->first_instruction;
+	delete this->last_instruction;
 }
 
 struct SignalVM {
 	// Initial information
 	uint num_exits;                 ///< Number of exits from block
 	uint num_green;                 ///< Number of green exits from block
-	SignalProgram* program;         ///< The program being run
+	SignalProgram *program;         ///< The program being run
 	TileIndex tile;                 ///< Our tile
 	Track track;                    ///< Our track
 	
 	// Current state
-	SignalInstruction* instruction; ///< Instruction to execute next
+	SignalInstruction *instruction; ///< Instruction to execute next
 	
 	// Output state
-	bool state;                     ///< Output state (true = green)
+	SignalState state;
+	
+	void Execute()
+	{
+		DEBUG(misc, 6, "Begining execution of programmable signal on tile %x, track %d", 
+					this->tile, this->track);
+		do {
+			DEBUG(misc, 10, "  Executing instruction %d, opcode %d", this->instruction->Id(), this->instruction->Opcode());
+			this->instruction->Evaluate(*this);
+		} while(this->instruction);
+		
+		DEBUG(misc, 6, "Completed");
+	}
 };
 
 // -- Conditions
@@ -57,7 +71,7 @@ SignalSimpleCondition::SignalSimpleCondition(SignalConditionCode code)
 	: SignalCondition(code)
 {}
 
-/* virtual */ bool SignalSimpleCondition::Evaluate(SignalVM& vm)
+/* virtual */ bool SignalSimpleCondition::Evaluate(SignalVM &vm)
 {
 	switch (this->cond_code) {
 		case PSC_ALWAYS:    return true;
@@ -77,7 +91,7 @@ SignalVariableCondition::SignalVariableCondition(SignalConditionCode code)
 	value = 0;
 }
 
-/*virtual*/ bool SignalVariableCondition::Evaluate(SignalVM& vm)
+/*virtual*/ bool SignalVariableCondition::Evaluate(SignalVM &vm)
 {
 	uint32 var_val;
 	switch(this->cond_code) {
@@ -99,7 +113,7 @@ SignalVariableCondition::SignalVariableCondition(SignalConditionCode code)
 }
 
 // -- Instructions
-SignalInstruction::SignalInstruction(SignalProgram* prog, SignalOpcode op)
+SignalInstruction::SignalInstruction(SignalProgram *prog, SignalOpcode op)
 	: opcode(op), previous(NULL), program(prog)
 {
 	*program->instructions.Append() = this;
@@ -110,15 +124,15 @@ SignalInstruction::~SignalInstruction()
 	program->instructions.Erase(program->instructions.Find(this));
 }
 
-void SignalInstruction::Insert(SignalInstruction* before_insn)
+void SignalInstruction::Insert(SignalInstruction *before_insn)
 {
 	this->previous = before_insn->Previous();
-	SetOtherNext(before_insn->Previous(), this);
-	SetOtherPrevious(before_insn, this);
+	before_insn->Previous()->SetNext(this);
+	before_insn->SetPrevious(this);
 	this->SetNext(before_insn);
 }
 
-SignalSpecial::SignalSpecial(SignalProgram* prog, SignalOpcode op)
+SignalSpecial::SignalSpecial(SignalProgram *prog, SignalOpcode op)
 	: SignalInstruction(prog, op)
 {
 	assert(op == PSO_FIRST || op == PSO_LAST);
@@ -128,21 +142,20 @@ SignalSpecial::SignalSpecial(SignalProgram* prog, SignalOpcode op)
 /*virtual*/ void SignalSpecial::Remove()
 {
 	if(opcode == PSO_FIRST) {
-		while(this->next) this->next->Remove();
+		while(this->next->Opcode() != PSO_LAST) this->next->Remove();
 	} else if(opcode == PSO_LAST) {
-		SetOtherNext(this->previous, NULL);
 	} else NOT_REACHED();
 	delete this;
 }
 
-/*static*/ void SignalSpecial::link(SignalSpecial* first, SignalSpecial* last)
+/*static*/ void SignalSpecial::link(SignalSpecial *first, SignalSpecial *last)
 {
 	assert(first->opcode == PSO_FIRST && last->opcode == PSO_LAST);
 	first->next    = last;
 	last->previous = first;
 }
 
-void SignalSpecial::Evaluate(SignalVM& vm)
+void SignalSpecial::Evaluate(SignalVM &vm)
 {
 	if(this->opcode == PSO_FIRST) {
 		DEBUG(misc, 7, "  Executing First");
@@ -152,16 +165,16 @@ void SignalSpecial::Evaluate(SignalVM& vm)
 		vm.instruction = NULL;
 	}
 }
-/*virtual*/ void SignalSpecial::SetNext(SignalInstruction* next_insn)
+/*virtual*/ void SignalSpecial::SetNext(SignalInstruction *next_insn)
 {
 	this->next = next_insn;
 }
 
-SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram* prog, SignalOpcode op) 
+SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram *prog, SignalOpcode op) 
 	: SignalInstruction(prog, op)
 	{}
 
-SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram* prog, SignalIf* block, SignalOpcode op) 
+SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram *prog, SignalIf *block, SignalOpcode op) 
 	: SignalInstruction(prog, op)
 {
 	this->block = block;
@@ -181,13 +194,13 @@ SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram* prog, SignalIf* bl
 	} else NOT_REACHED();
 }
 
-/*virtual*/ void SignalIf::PseudoInstruction::Evaluate(SignalVM& vm)
+/*virtual*/ void SignalIf::PseudoInstruction::Evaluate(SignalVM &vm)
 {
 	DEBUG(misc, 7, "  Executing If Pseudo Instruction %s", opcode == PSO_IF_ELSE ? "Else" : "Endif");
 	vm.instruction = this->block->after;
 }
 
-/*virtual*/ void SignalIf::PseudoInstruction::SetNext(SignalInstruction* next_insn)
+/*virtual*/ void SignalIf::PseudoInstruction::SetNext(SignalInstruction *next_insn)
 {
 	if(this->opcode == PSO_IF_ELSE) {
 		this->block->if_false = next_insn;
@@ -196,7 +209,7 @@ SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram* prog, SignalIf* bl
 	} else NOT_REACHED();
 }
 
-SignalIf::SignalIf(SignalProgram* prog, bool raw)
+SignalIf::SignalIf(SignalProgram *prog, bool raw)
 	: SignalInstruction(prog, PSO_IF)
 {
 	if(!raw) {
@@ -213,27 +226,27 @@ SignalIf::SignalIf(SignalProgram* prog, bool raw)
 	while(this->if_true)  this->if_true->Remove();
 	while(this->if_false) this->if_false->Remove();
 	
-	SetOtherNext(this->previous, this->after);
-	SetOtherPrevious(this->after, this->previous);
+	this->previous->SetNext(this->after);
+	this->after->SetPrevious(this->previous);
 	delete this;
 }
 
-/*virtual*/ void SignalIf::Insert(SignalInstruction* before_insn)
+/*virtual*/ void SignalIf::Insert(SignalInstruction *before_insn)
 {
 	this->previous = before_insn->Previous();
-	SetOtherNext(before_insn->Previous(), this);
-	SetOtherPrevious(before_insn, this->if_false);
+	before_insn->Previous()->SetNext(this);
+	before_insn->SetPrevious(this->if_false);
 	this->after    = before_insn;
 }
 
-void SignalIf::SetCondition(SignalCondition* cond)
+void SignalIf::SetCondition(SignalCondition *cond)
 {
 	assert(cond != this->condition);
 	delete this->condition;
 	this->condition = cond;
 }
 
-/*virtual*/ void SignalIf::Evaluate(SignalVM& vm)
+/*virtual*/ void SignalIf::Evaluate(SignalVM &vm)
 {
 	bool is_true = this->condition->Evaluate(vm);
 	DEBUG(misc, 7, "  Executing If, taking %s branch", is_true ? "then" : "else");
@@ -244,14 +257,14 @@ void SignalIf::SetCondition(SignalCondition* cond)
 	}
 }
 
-/*virtual*/ void SignalIf::SetNext(SignalInstruction* next_insn)
+/*virtual*/ void SignalIf::SetNext(SignalInstruction *next_insn)
 {
 	this->if_true = next_insn;
 }
 
 
 
-SignalSet::SignalSet(SignalProgram* prog, bool state)
+SignalSet::SignalSet(SignalProgram *prog, SignalState state)
 	: SignalInstruction(prog, PSO_SET_SIGNAL)
 {
 	this->to_state = state;
@@ -259,12 +272,12 @@ SignalSet::SignalSet(SignalProgram* prog, bool state)
 
 /*virtual*/ void SignalSet::Remove()
 {
-	SetOtherPrevious(this->next, this->previous);
-	SetOtherNext(this->previous, this->next);
+	this->next->SetPrevious(this->previous);
+	this->previous->SetNext(this->next);
 	delete this;
 }
 
-/*virtual*/ void SignalSet::Evaluate(SignalVM& vm)
+/*virtual*/ void SignalSet::Evaluate(SignalVM &vm)
 {
 	DEBUG(misc, 7, "  Executing SetSignal, making %s", this->to_state? "green" : "red");
 	vm.state       = this->to_state;
@@ -272,17 +285,17 @@ SignalSet::SignalSet(SignalProgram* prog, bool state)
 }
 
 
-/*virtual*/ void SignalSet::SetNext(SignalInstruction* next_insn)
+/*virtual*/ void SignalSet::SetNext(SignalInstruction *next_insn)
 {
 	this->next = next_insn;
 }
 
-SignalProgram* GetSignalProgram(TileIndex t, Track track)
+SignalProgram *GetSignalProgram(TileIndex t, Track track)
 {
 	return GetSignalProgram(GetSignalId(t, track));
 }
 
-SignalProgram* GetSignalProgram(uint32 signal_id)
+SignalProgram *GetSignalProgram(uint32 signal_id)
 {	
 	ProgramList::iterator i = _signal_programs.find(signal_id);
 	if(i != _signal_programs.end()) {
@@ -290,14 +303,14 @@ SignalProgram* GetSignalProgram(uint32 signal_id)
 	} else {
 		// Converted NAND signal
 		DEBUG(misc, 4, "Programmable signal at tile %x is old NAND, converting", signal_id >> 1);
-		SignalProgram* pr = new SignalProgram();
-		SignalIf* cond = new SignalIf(pr);
-		SignalVariableCondition *vc = new SignalVariableCondition(PSC_NUM_RED);
+		SignalProgram *pr = new SignalProgram();
+		SignalIf *cond = new SignalIf(pr);
+		SignalVariableCondition *vc = new SignalVariableCondition(PSC_NUM_GREEN);
 		cond->SetCondition(vc);
 		cond->Insert(pr->last_instruction);
 		
-		SignalSet* make_green = new SignalSet(pr, true);
-		SignalSet* make_red   = new SignalSet(pr, false);
+		SignalSet *make_green = new SignalSet(pr, SIGNAL_STATE_GREEN);
+		SignalSet *make_red   = new SignalSet(pr, SIGNAL_STATE_RED);
 		
 		make_green->Insert(cond->if_true);
 		make_red->Insert(cond->if_false);
@@ -320,9 +333,9 @@ void FreeSignalProgram(uint signal_id)
 		_signal_programs.erase(i);
 	}
 }
-bool RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green)
+SignalState RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green)
 {
-	SignalProgram* program = GetSignalProgram(t, track);
+	SignalProgram *program = GetSignalProgram(t, track);
 	SignalVM vm;
 	vm.program = program;
 	vm.num_exits = num_exits;
@@ -331,28 +344,23 @@ bool RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green)
 	vm.track = track;
 	
 	vm.instruction = program->first_instruction;
-	vm.state = false;
+	vm.state = SIGNAL_STATE_RED;
 	
-	DEBUG(misc, 6, "Begining execution of programmable signal on tile %x, track %d", t, track);
-	DEBUG(misc, 7, "%d exits, of which %d green", num_exits, num_green);
-	do {
-		DEBUG(misc, 10, "  Executing instruction %d, opcode %d", vm.instruction->Id(), vm.instruction->Opcode());
-		vm.instruction->Evaluate(vm);
-	} while(vm.instruction);
-	DEBUG(misc, 6, "Completed, returning %s", vm.state ? "green" : "red");
-	
+	DEBUG(misc, 7, "%d exits, of which %d green", vm.num_exits, vm.num_green);
+	vm.Execute();
+	DEBUG(misc, 7, "Returning %s", vm.state == SIGNAL_STATE_GREEN ? "green" : "red");	
 	return vm.state;
 }
 
 void SignalProgram::DebugPrintProgram()
 {
-	DEBUG(misc, 5, "Program %x listing", this);
+	DEBUG(misc, 5, "Program %p listing", this);
 	for(SignalInstruction **b = this->instructions.Begin(), **i = b, **e = this->instructions.End();
 			i != e; i++)
 	{
-		SignalInstruction* insn = *i;
-		DEBUG(misc, 5, " %d: Opcode %d, prev %d", i - b, insn->Opcode(), 
-					insn->Previous() ? insn->Previous()->Id() : -1);
+		SignalInstruction *insn = *i;
+		DEBUG(misc, 5, " %d: Opcode %d, prev %d", i - b, int(insn->Opcode()), 
+					int(insn->Previous() ? insn->Previous()->Id() : -1));
 	}
 }
 /** Insert a signal instruction into the signal program.
@@ -391,8 +399,11 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 		}
 		
 		case PSO_SET_SIGNAL: {
+			SignalState ss = (SignalState) p2;
+			if(ss > SIGNAL_STATE_MAX) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
 			if(!exec) return CommandCost();
-			SignalSet *set = new SignalSet(prog, p2);
+			
+			SignalSet *set = new SignalSet(prog, ss);
 			set->Insert(insert_before);
 			break;
 		}
@@ -442,16 +453,18 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 
 	bool exec = (flags & DC_EXEC);
 	
-	SignalInstruction* insn = prog->instructions[instruction_id];
+	SignalInstruction *insn = prog->instructions[instruction_id];
 	switch(insn->Opcode()) {
 		case PSO_SET_SIGNAL: {
+			SignalState state = (SignalState) p2;
+			if(state > SIGNAL_STATE_MAX) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
 			if(!exec) return CommandCost();
 			SignalSet *ss = static_cast<SignalSet*>(insn);
-			ss->to_state = p2;
+			ss->to_state = state;
 		} break;
 		
 		case PSO_IF: {
-			SignalIf* si = static_cast<SignalIf*>(insn);
+			SignalIf *si = static_cast<SignalIf*>(insn);
 			byte act = GB(p2, 0, 1);
 			if(act == 0) { // Set code
 				SignalConditionCode code = (SignalConditionCode) GB(p2, 1, 8);
@@ -534,7 +547,7 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 
 	bool exec = (flags & DC_EXEC);
 	
-	SignalInstruction* insn = prog->instructions[instruction_id];
+	SignalInstruction *insn = prog->instructions[instruction_id];
 	switch(insn->Opcode()) {
 		case PSO_SET_SIGNAL:
 		case PSO_IF:

@@ -356,6 +356,8 @@ static inline void SetSignalVariant(TileIndex t, Track track, SignalVariant v)
 enum SignalState {
 	SIGNAL_STATE_RED   = 0, ///< The signal is red
 	SIGNAL_STATE_GREEN = 1, ///< The signal is green
+	
+	SIGNAL_STATE_MAX = SIGNAL_STATE_GREEN
 };
 
 /**

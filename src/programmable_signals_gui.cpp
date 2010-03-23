@@ -71,7 +71,7 @@ static SignalOpcode OpcodeForIndex(int index)
 	}
 }
 
-static bool IsConditionComparator(SignalCondition* cond)
+static bool IsConditionComparator(SignalCondition *cond)
 {
 	switch(cond->ConditionCode()) {
 		case PSC_NUM_GREEN:
@@ -111,7 +111,7 @@ static const StringID _program_sigstate[] = {
 };
 
 /** Get the string for a condition */
-static char* GetConditionString(SignalCondition *cond, char* buf, char* buflast)
+static char *GetConditionString(SignalCondition *cond, char *buf, char *buflast)
 {
 	StringID string = INVALID_STRING_ID;
 	bool comparator = IsConditionComparator(cond);
@@ -190,7 +190,7 @@ typedef SmallVector<GuiInstruction, 4> GuiInstructionList;
 
 class ProgramWindow: public Window {
 public:
-	ProgramWindow(const WindowDesc* desc, TileIndex tile, Track track)
+	ProgramWindow(const WindowDesc *desc, TileIndex tile, Track track)
 	{
 		this->InitNested(desc, GetSignalId(tile, track));
 		this->tile = tile;
@@ -228,7 +228,7 @@ public:
 			}
 			
 			case PROGRAM_WIDGET_REMOVE: {
-				SignalInstruction* ins = GetSelected();
+				SignalInstruction *ins = GetSelected();
 				if(this->GetOwner() != _local_company || !ins)
 					return;
 				
@@ -311,7 +311,7 @@ public:
 	
 	virtual void OnDropdownSelect(int widget, int index)
 	{
-		SignalInstruction* ins = this->GetSelected();
+		SignalInstruction *ins = this->GetSelected();
 		if(!ins) return;
 		
 		switch (widget) {
@@ -422,7 +422,7 @@ public:
 	}
 	
 private:
-	SignalInstruction* GetSelected() const
+	SignalInstruction *GetSelected() const
 	{
 		if(this->selected_instruction == -1 
 				|| this->selected_instruction >= this->instructions.Length())
@@ -461,7 +461,7 @@ private:
 				case PSO_FIRST:
 				case PSO_LAST: {
 					SignalSpecial *s = static_cast<SignalSpecial*>(insn);
-					GuiInstruction* gi = this->instructions.Append();
+					GuiInstruction *gi = this->instructions.Append();
 					gi->insn   = s;
 					gi->indent = indent;
 					insn = s->next;
@@ -470,7 +470,7 @@ private:
 				
 				case PSO_IF: {
 					SignalIf *i = static_cast<SignalIf*>(insn);
-					GuiInstruction* gi = this->instructions.Append();
+					GuiInstruction *gi = this->instructions.Append();
 					gi->insn   = i;
 					gi->indent = indent++;
 					insn = i->if_true;
@@ -479,7 +479,7 @@ private:
 				
 				case PSO_IF_ELSE: {
 					SignalIf::PseudoInstruction *p = static_cast<SignalIf::PseudoInstruction*>(insn);
-					GuiInstruction* gi = this->instructions.Append();
+					GuiInstruction *gi = this->instructions.Append();
 					gi->insn   = p;
 					gi->indent = indent - 1;
 					insn = p->block->if_false;
@@ -488,7 +488,7 @@ private:
 				
 				case PSO_IF_ENDIF: {
 					SignalIf::PseudoInstruction *p = static_cast<SignalIf::PseudoInstruction*>(insn);
-					GuiInstruction* gi = this->instructions.Append();
+					GuiInstruction *gi = this->instructions.Append();
 					gi->insn   = p;
 					gi->indent = --indent;
 					insn = p->block->after;
@@ -497,7 +497,7 @@ private:
 				
 				case PSO_SET_SIGNAL: {
 					SignalSet *s = static_cast<SignalSet*>(insn);
-					GuiInstruction* gi = this->instructions.Append();
+					GuiInstruction *gi = this->instructions.Append();
 					gi->insn   = s;
 					gi->indent = indent;
 					insn = s->next;
@@ -547,7 +547,7 @@ private:
 		GuiInstruction& gi = this->instructions[this->selected_instruction];
 		switch(gi.insn->Opcode()) {
 			case PSO_IF: {
-				SignalIf* i = static_cast<SignalIf*>(gi.insn);
+				SignalIf *i = static_cast<SignalIf*>(gi.insn);
 				left_sel->SetDisplayedPlane(DPL_COND_VARIABLE);
 				middle_sel->SetDisplayedPlane(DPM_COND_COMPARATOR);
 				right_sel->SetDisplayedPlane(DPR_COND_VALUE);
@@ -568,7 +568,7 @@ private:
 			} break;
 				
 			case PSO_SET_SIGNAL: {
-				SignalSet* s = static_cast<SignalSet*>(gi.insn);
+				SignalSet *s = static_cast<SignalSet*>(gi.insn);
 				left_sel->SetDisplayedPlane(DPL_SET_STATE);
 				this->SetWidgetDisabledState(PROGRAM_WIDGET_SET_STATE, false);
 				this->GetWidget<NWidgetCore>(PROGRAM_WIDGET_SET_STATE)->widget_data = 
