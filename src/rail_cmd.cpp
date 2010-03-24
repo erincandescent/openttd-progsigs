@@ -562,8 +562,10 @@ CommandCost CmdRemoveSingleRail(TileIndex tile, DoCommandFlag flags, uint32 p1, 
 			cost.AddCost(RailClearCost(GetRailType(tile)));
 
 			/* Charge extra to remove signals on the track, if they are there */
-			if (HasSignalOnTrack(tile, track))
+			if (HasSignalOnTrack(tile, track)) {
+				CheckRemoveSignal(tile, track);
 				cost.AddCost(DoCommand(tile, track, 0, flags, CMD_REMOVE_SIGNALS));
+			}
 
 			if (flags & DC_EXEC) {
 				if (HasReservedTracks(tile, trackbit)) {
@@ -1310,6 +1312,8 @@ CommandCost CmdRemoveSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1
 				}
 			}
 		}
+		
+		CheckRemoveSignal(tile, track);
 		SetPresentSignals(tile, GetPresentSignals(tile) & ~SignalOnTrack(track));
 
 		/* removed last signal from tile? */

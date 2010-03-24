@@ -110,6 +110,18 @@ enum SigSegState {
 	SIGSEG_PBS,     ///< Segment is a PBS segment
 };
 
+/** Checks for any data attached to any signals, and removes it. Call when performing
+ * an action which may potentially remove signals from a tile, in order to avoid leaking
+ * data.
+ */
+void CheckRemoveSignalsFromTile(TileIndex tile);
+
+/** Checks for, and removes, any extra signal data. Call when removing a piece of track
+ * which is potentially signalled, in order to free any extra data that may be associated
+ * with said track.
+ */
+void CheckRemoveSignal(TileIndex tile, Track track);
+
 SigSegState UpdateSignalsOnSegment(TileIndex tile, DiagDirection side, Owner owner);
 void SetSignalsOnBothDir(TileIndex tile, Track track, Owner owner);
 void AddTrackToSignalBuffer(TileIndex tile, Track track, Owner owner);

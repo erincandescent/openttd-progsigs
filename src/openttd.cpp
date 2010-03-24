@@ -64,6 +64,7 @@
 #include "engine_base.h"
 #include "engine_func.h"
 #include "core/random_func.hpp"
+#include "programmable_signals.h"
 
 #include "newgrf_commons.h"
 
@@ -347,6 +348,7 @@ static void ShutdownGame()
 	_cargopacket_pool.CleanPool();
 	_engine_pool.CleanPool();
 	_company_pool.CleanPool();
+	FreeSignalPrograms();
 
 	free(_config_file);
 

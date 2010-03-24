@@ -698,3 +698,24 @@ void SetSignalsOnBothDir(TileIndex tile, Track track, Owner owner)
 	AddTrackToSignalBuffer(tile, track, owner);
 	UpdateSignalsInBuffer(owner);
 }
+
+void CheckRemoveSignalsFromTile(TileIndex tile)
+{
+	if(!HasSignals(tile)) return;
+	
+	TrackBits tb = GetTrackBits(tile);
+	Track tr;
+	while((tr = RemoveFirstTrack(&tb)) != INVALID_TRACK) {
+		if(HasSignalOnTrack(tile, tr)) CheckRemoveSignal(tile, tr);
+	}
+}
+
+void CheckRemoveSignal(TileIndex tile, Track track)
+{
+	if(!HasSignalOnTrack(tile, track)) return;
+	
+	SignalType t = GetSignalType(tile, track);
+	if(IsProgrammableSignal(t)) {
+		FreeSignalProgram(tile, track);
+	}
+}

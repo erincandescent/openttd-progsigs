@@ -15,7 +15,7 @@
 #include "command_type.h"
 #include "table/strings.h"
 #include "window_func.h"
-#include <map>
+#include <assert.h>
 
 ProgramList _signal_programs;
 
@@ -121,7 +121,9 @@ SignalInstruction::SignalInstruction(SignalProgram *prog, SignalOpcode op)
 
 SignalInstruction::~SignalInstruction()
 {
-	program->instructions.Erase(program->instructions.Find(this));
+	SignalInstruction** pthis = program->instructions.Find(this);
+	assert(pthis != program->instructions.End());
+	program->instructions.Erase(pthis);
 }
 
 void SignalInstruction::Insert(SignalInstruction *before_insn)
@@ -145,7 +147,6 @@ SignalSpecial::SignalSpecial(SignalProgram *prog, SignalOpcode op)
 		while(this->next->Opcode() != PSO_LAST) this->next->Remove();
 	} else if(opcode == PSO_LAST) {
 	} else NOT_REACHED();
-	delete this;
 }
 
 /*static*/ void SignalSpecial::link(SignalSpecial *first, SignalSpecial *last)
@@ -333,6 +334,17 @@ void FreeSignalProgram(uint signal_id)
 		_signal_programs.erase(i);
 	}
 }
+
+void FreeSignalPrograms()
+{
+	ProgramList::iterator i, e;
+	for(i = _signal_programs.begin(), e = _signal_programs.end(); i != e;) {
+		delete i->second;
+		// Must postincrement here to avoid iterator invalidation
+		_signal_programs.erase(i++);
+	}
+}
+
 SignalState RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green)
 {
 	SignalProgram *program = GetSignalProgram(t, track);
@@ -359,10 +371,11 @@ void SignalProgram::DebugPrintProgram()
 			i != e; i++)
 	{
 		SignalInstruction *insn = *i;
-		DEBUG(misc, 5, " %d: Opcode %d, prev %d", i - b, int(insn->Opcode()), 
+		DEBUG(misc, 5, " %ld: Opcode %d, prev %d", i - b, int(insn->Opcode()), 
 					int(insn->Previous() ? insn->Previous()->Id() : -1));
 	}
 }
+
 /** Insert a signal instruction into the signal program.
  *
  * @param tile The Tile on which to perform the operation

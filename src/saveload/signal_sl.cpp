@@ -202,7 +202,6 @@ static void DoFixups(FixupList &l, InstructionList &il)
 
 static void Load_SPRG()
 {
-	_signal_programs.clear();
 	uint count = ReadVLI();
 	for(uint i = 0; i < count; i++) {
 		FixupList l;

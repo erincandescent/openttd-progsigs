@@ -381,6 +381,9 @@ void FreeSignalProgram(uint32 id);
 /// Frees a signal program by tile and track
 void FreeSignalProgram(TileIndex t, Track track);
 
+/// Frees all signal programs (For use when creating a new game)
+void FreeSignalPrograms();
+
 /// Runs the signal program, specifying the following parameters.
 SignalState RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green);
 
