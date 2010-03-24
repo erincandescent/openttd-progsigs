@@ -12,9 +12,10 @@
 #include "stdafx.h"
 #include "programmable_signals.h"
 #include "debug.h"
-#include "command_type.h"
+#include "command_func.h"
 #include "table/strings.h"
 #include "window_func.h"
+#include "company_func.h"
 #include <assert.h>
 
 ProgramList _signal_programs;
@@ -296,29 +297,26 @@ SignalProgram *GetSignalProgram(TileIndex t, Track track)
 	return GetSignalProgram(GetSignalId(t, track));
 }
 
-SignalProgram *GetSignalProgram(uint32 signal_id)
-{	
+static SignalProgram *GetExistingSignalProgram(uint32 signal_id)
+{
 	ProgramList::iterator i = _signal_programs.find(signal_id);
 	if(i != _signal_programs.end()) {
 		return i->second;
 	} else {
+		return NULL;
+	}
+}
+
+SignalProgram *GetSignalProgram(uint32 signal_id)
+{	
+	SignalProgram *pr = GetExistingSignalProgram(signal_id);
+	if(!pr) {
 		// Converted NAND signal
 		DEBUG(misc, 4, "Programmable signal at tile %x is old NAND, converting", signal_id >> 1);
-		SignalProgram *pr = new SignalProgram();
-		SignalIf *cond = new SignalIf(pr);
-		SignalVariableCondition *vc = new SignalVariableCondition(PSC_NUM_GREEN);
-		cond->SetCondition(vc);
-		cond->Insert(pr->last_instruction);
-		
-		SignalSet *make_green = new SignalSet(pr, SIGNAL_STATE_GREEN);
-		SignalSet *make_red   = new SignalSet(pr, SIGNAL_STATE_RED);
-		
-		make_green->Insert(cond->if_true);
-		make_red->Insert(cond->if_false);
-		
+		pr = new SignalProgram();	
 		_signal_programs[signal_id] = pr;
-		return pr;
 	}
+	return pr;
 }
 
 void FreeSignalProgram(TileIndex t, Track track)
@@ -396,9 +394,14 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	uint instruction_id = GB(p1, 5, 16);
 	SignalOpcode op     = (SignalOpcode) GB(p1, 21, 8);
 	
-	SignalProgram *prog = GetSignalProgram(signal_id);
+	if (!IsTileOwner(tile, _current_company)) 
+		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
+	
+	SignalProgram *prog = GetExistingSignalProgram(signal_id);
+	if(!prog) 
+		return_cmd_error(STR_ERR_PROGSIG_NOT_THERE);
 	if(instruction_id > prog->instructions.Length())
-		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
 	bool exec = (flags & DC_EXEC);
 	
@@ -413,7 +416,7 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 		
 		case PSO_SET_SIGNAL: {
 			SignalState ss = (SignalState) p2;
-			if(ss > SIGNAL_STATE_MAX) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+			if(ss > SIGNAL_STATE_MAX) return_cmd_error(STR_ERR_PROGSIG_INVALID_OPCODE);
 			if(!exec) return CommandCost();
 			
 			SignalSet *set = new SignalSet(prog, ss);
@@ -426,7 +429,7 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 		case PSO_IF_ELSE:
 		case PSO_IF_ENDIF:
 		default:
-			return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+			return_cmd_error(STR_ERR_PROGSIG_INVALID_OPCODE);
 	}
 	
 	if(!exec) return CommandCost();
@@ -460,9 +463,15 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	uint32 signal_id    = GetSignalId(tile, track);
 	uint instruction_id = GB(p1, 5, 16);
 	
-	SignalProgram *prog = GetSignalProgram(signal_id);
+	if (!IsTileOwner(tile, _current_company)) 
+		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
+	
+	SignalProgram *prog = GetExistingSignalProgram(signal_id);
+	if(!prog) 
+		return_cmd_error(STR_ERR_PROGSIG_NOT_THERE);
+	
 	if(instruction_id > prog->instructions.Length())
-		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
 	bool exec = (flags & DC_EXEC);
 	
@@ -470,8 +479,10 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	switch(insn->Opcode()) {
 		case PSO_SET_SIGNAL: {
 			SignalState state = (SignalState) p2;
-			if(state > SIGNAL_STATE_MAX) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
-			if(!exec) return CommandCost();
+			if(state > SIGNAL_STATE_MAX) 
+				return_cmd_error(STR_ERR_PROGSIG_INVALID_SIGNAL_STATE);
+			if(!exec) 
+				return CommandCost();
 			SignalSet *ss = static_cast<SignalSet*>(insn);
 			ss->to_state = state;
 		} break;
@@ -482,7 +493,7 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 			if(act == 0) { // Set code
 				SignalConditionCode code = (SignalConditionCode) GB(p2, 1, 8);
 				if(code > PSC_MAX)
-					return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+					return_cmd_error(STR_ERR_PROGSIG_INVALID_CONDITION);
 				if(!exec) return CommandCost();
 				
 				SignalCondition *cond;
@@ -502,7 +513,7 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 				switch(si->condition->ConditionCode()) {
 					case PSC_ALWAYS:
 					case PSC_NEVER:
-						return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+						return CommandCost(STR_ERR_PROGSIG_INVALID_CONDITION_FIELD);
 						
 					case PSC_NUM_GREEN:
 					case PSC_NUM_RED:
@@ -510,13 +521,13 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 						SignalConditionField f = (SignalConditionField) GB(p2, 1, 2);
 						uint32 val = GB(p2, 3, 27);
 						if(f == SCF_COMPARATOR) {
-							if(val > SGC_LAST) return CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+							if(val > SGC_LAST) return_cmd_error(STR_ERR_PROGSIG_INVALID_COMPARATOR);
 							if(!exec) return CommandCost();						
 							vc->comparator = (SignalComparator) val;
 						} else if(f == SCF_VALUE) {
 							if(!exec) return CommandCost();
 							vc->value = val;
-						} else CommandCost(STR_ERR_PROGSIG_INVALID_OPCODE);
+						} else CommandCost(STR_ERR_PROGSIG_INVALID_CONDITION_FIELD);
 						break;
 				}
 			}
@@ -554,9 +565,15 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	uint32 signal_id    = GetSignalId(tile, track);
 	uint instruction_id = GB(p1, 5, 16);
 	
-	SignalProgram *prog = GetSignalProgram(signal_id);
+	if (!IsTileOwner(tile, _current_company)) 
+		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
+	
+	SignalProgram *prog = GetExistingSignalProgram(signal_id);
+	if(!prog) 
+		return_cmd_error(STR_ERR_PROGSIG_NOT_THERE);
+	
 	if(instruction_id > prog->instructions.Length())
-		return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
 	bool exec = (flags & DC_EXEC);
 	
@@ -573,7 +590,7 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 		case PSO_IF_ELSE:
 		case PSO_IF_ENDIF:
 		default:
-			return CommandCost(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
+			return_cmd_error(STR_ERR_PROGSIG_INVALID_OPCODE);
 	}
 	
 	if(!exec) return CommandCost();

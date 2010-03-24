@@ -1949,6 +1949,12 @@ STR_PROGRAM_SIGNAL_TOOLTIP                                      :{BLACK}Program 
 
 STR_ERR_PROGSIG_INVALID_INSTRUCTION                             :{WHITE}Cannot insert instruction after instruction with invalid ID
 STR_ERR_PROGSIG_INVALID_OPCODE                                  :{WHITE}Cannot insert an instruction of that opcode
+STR_ERR_PROGSIG_NOT_THERE                                       :{WHITE}There is no programmable signal there
+STR_ERR_PROGSIG_INVALID_SIGNAL_STATE                            :{WHITE}That signal state is invalid
+STR_ERR_PROGSIG_INVALID_CONDITION                               :{WHITE}That condition is invalid
+STR_ERR_PROGSIG_INVALID_CONDITION_FIELD                         :{WHITE}That field is not valid for the condition
+STR_ERR_PROGSIG_INVALID_COMPARATOR                              :{WHITE}That comparator is not valid
+
 
 STR_PROGSIG_CAPTION                                             :{WHITE}Signal Program
 STR_PROGSIG_COND_VARIABLE_TOOLTIP                               :{BLACK}Condition to compare upon

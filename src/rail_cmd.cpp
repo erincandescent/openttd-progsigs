@@ -1608,6 +1608,8 @@ static CommandCost ClearTile_Track(TileIndex tile, DoCommandFlag flags)
 
 	switch (GetRailTileType(tile)) {
 		case RAIL_TILE_SIGNALS:
+			if (flags & DC_EXEC) CheckRemoveSignalsFromTile(tile);
+			
 		case RAIL_TILE_NORMAL: {
 			Slope tileh = GetTileSlope(tile, NULL);
 			/* Is there flat water on the lower halftile, that gets cleared expensively? */
