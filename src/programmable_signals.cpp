@@ -20,8 +20,10 @@
 
 ProgramList _signal_programs;
 
-SignalProgram::SignalProgram(bool raw)
+SignalProgram::SignalProgram(TileIndex tile, Track track, bool raw)
 {
+	this->tile  = tile;
+	this->track = track;
 	if(!raw) {
 		this->first_instruction = new SignalSpecial(this, PSO_FIRST);
 		this->last_instruction  = new SignalSpecial(this, PSO_LAST);
@@ -41,8 +43,6 @@ struct SignalVM {
 	uint num_exits;                 ///< Number of exits from block
 	uint num_green;                 ///< Number of green exits from block
 	SignalProgram *program;         ///< The program being run
-	TileIndex tile;                 ///< Our tile
-	Track track;                    ///< Our track
 	
 	// Current state
 	SignalInstruction *instruction; ///< Instruction to execute next
@@ -53,7 +53,7 @@ struct SignalVM {
 	void Execute()
 	{
 		DEBUG(misc, 6, "Begining execution of programmable signal on tile %x, track %d", 
-					this->tile, this->track);
+					this->program->tile, this->program->track);
 		do {
 			DEBUG(misc, 10, "  Executing instruction %d, opcode %d", this->instruction->Id(), this->instruction->Opcode());
 			this->instruction->Evaluate(*this);
@@ -292,11 +292,6 @@ SignalSet::SignalSet(SignalProgram *prog, SignalState state)
 	this->next = next_insn;
 }
 
-SignalProgram *GetSignalProgram(TileIndex t, Track track)
-{
-	return GetSignalProgram(GetSignalId(t, track));
-}
-
 static SignalProgram *GetExistingSignalProgram(uint32 signal_id)
 {
 	ProgramList::iterator i = _signal_programs.find(signal_id);
@@ -307,30 +302,31 @@ static SignalProgram *GetExistingSignalProgram(uint32 signal_id)
 	}
 }
 
-SignalProgram *GetSignalProgram(uint32 signal_id)
-{	
+
+SignalProgram *GetSignalProgram(TileIndex t, Track track)
+{
+	uint32 signal_id = GetSignalId(t, track);
 	SignalProgram *pr = GetExistingSignalProgram(signal_id);
 	if(!pr) {
-		// Converted NAND signal
-		DEBUG(misc, 4, "Programmable signal at tile %x is old NAND, converting", signal_id >> 1);
-		pr = new SignalProgram();	
+		pr = new SignalProgram(t, track);	
 		_signal_programs[signal_id] = pr;
 	}
+	assert(pr->tile == t && pr->track == track);
 	return pr;
 }
 
-void FreeSignalProgram(TileIndex t, Track track)
-{
-	FreeSignalProgram(GetSignalId(t, track));
-}
-
-void FreeSignalProgram(uint signal_id)
+static void FreeSignalProgram(uint signal_id)
 {
 	ProgramList::iterator i = _signal_programs.find(signal_id);
 	if(i != _signal_programs.end()) {
 		delete i->second;
 		_signal_programs.erase(i);
 	}
+}
+
+void FreeSignalProgram(TileIndex t, Track track)
+{
+	FreeSignalProgram(GetSignalId(t, track));
 }
 
 void FreeSignalPrograms()
@@ -350,8 +346,6 @@ SignalState RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_
 	vm.program = program;
 	vm.num_exits = num_exits;
 	vm.num_green = num_green;
-	vm.tile = t;
-	vm.track = track;
 	
 	vm.instruction = program->first_instruction;
 	vm.state = SIGNAL_STATE_RED;

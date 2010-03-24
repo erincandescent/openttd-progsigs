@@ -94,7 +94,7 @@ static void Save_SPRG()
 		if(!HasProgrammableSignals(id)) {
 			DEBUG(sl, 0, "Programmable signal information for signal with id %x has been leaked!", id);
 			++i;
-			FreeSignalProgram(id);
+			FreeSignalProgram(i->second->tile, i->second->track);
 			if(i == e) break;
 		}
 	}
@@ -109,7 +109,8 @@ static void Save_SPRG()
 	
 		prog->DebugPrintProgram();
 	
-		WriteVLI(b, id);
+		WriteVLI(b, prog->tile);
+		WriteVLI(b, prog->track);
 		WriteVLI(b, prog->instructions.Length());
 		for(SignalInstruction **j = prog->instructions.Begin(), **je = prog->instructions.End();
 				j != je; ++j) {
@@ -205,11 +206,13 @@ static void Load_SPRG()
 	uint count = ReadVLI();
 	for(uint i = 0; i < count; i++) {
 		FixupList l;
-		uint signalId     = ReadVLI();
+		TileIndex tile    = ReadVLI();
+		Track     track   = (Track) ReadVLI();
 		uint instructions = ReadVLI();
+		uint signal_id    = GetSignalId(tile, track);
 		
-		SignalProgram *sp = new SignalProgram(true);
-		_signal_programs[signalId] = sp;
+		SignalProgram *sp = new SignalProgram(tile, track, true);
+		_signal_programs[signal_id] = sp;
 		
 		for(uint j = 0; j < instructions; j++) {
 			SignalOpcode op = (SignalOpcode) ReadVLI();

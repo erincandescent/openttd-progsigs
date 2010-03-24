@@ -31,9 +31,12 @@ typedef SmallVector<SignalInstruction*, 4> InstructionList;
 
 /** The actual programmable signal information */
 struct SignalProgram {
-	SignalProgram(bool raw = false);
+	SignalProgram(TileIndex tile, Track track, bool raw = false);
 	~SignalProgram();
 	void DebugPrintProgram();
+	
+	TileIndex tile;
+	Track track;
 	
 	SignalSpecial *first_instruction;
 	SignalSpecial *last_instruction;
@@ -371,12 +374,6 @@ void ShowSignalProgramWindow(TileIndex tile, Track track);
 /// Gets the signal program for the tile identified by @p t and @p track.
 /// An empty program will be constructed if none is specified
 SignalProgram *GetSignalProgram(TileIndex t, Track track);
-
-/// Gets the signal program by a SignalID
-SignalProgram *GetSignalProgram(uint32 id);
-
-/// Frees a signal program by ID
-void FreeSignalProgram(uint32 id);
 
 /// Frees a signal program by tile and track
 void FreeSignalProgram(TileIndex t, Track track);
