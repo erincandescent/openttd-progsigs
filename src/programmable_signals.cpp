@@ -239,6 +239,7 @@ SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram *prog, SignalIf *bl
 	} else if (opcode == PSO_IF_ENDIF) {
 		this->block->if_false = NULL;
 	} else NOT_REACHED();
+	delete this;
 }
 
 /*virtual*/ void SignalIf::PseudoInstruction::Evaluate(SignalVM &vm)
