@@ -21,6 +21,9 @@
 #include "widgets/dropdown_func.h"
 #include "gui.h"
 #include "gfx_func.h"
+#include "tilehighlight_func.h"
+#include "rail_map.h"
+#include "tile_cmd.h"
 
 #include "table/sprites.h"
 #include "table/strings.h"
@@ -38,6 +41,8 @@ enum ProgramWindowWidgets {
 	PROGRAM_WIDGET_COND_VARIABLE,
 	PROGRAM_WIDGET_COND_COMPARATOR,
 	PROGRAM_WIDGET_COND_VALUE,
+	PROGRAM_WIDGET_COND_GOTO_SIGNAL,
+	PROGRAM_WIDGET_COND_SET_SIGNAL,
 	
 	PROGRAM_WIDGET_GOTO_SIGNAL,
 	PROGRAM_WIDGET_INSERT,
@@ -51,9 +56,11 @@ enum PanelWidgets {
 	
 	// Middle
 	DPM_COND_COMPARATOR = 0,
+	DPM_COND_GOTO_SIGNAL,
 	
 	// Right
 	DPR_COND_VALUE = 0,
+	DPR_COND_SET_SIGNAL
 };
 
 static const StringID _program_insert[] = {
@@ -64,7 +71,7 @@ static const StringID _program_insert[] = {
 
 static SignalOpcode OpcodeForIndex(int index) 
 {
-	switch(index) {
+	switch (index) {
 		case 0: return PSO_IF;
 		case 1: return PSO_SET_SIGNAL;
 		default: NOT_REACHED();
@@ -73,7 +80,7 @@ static SignalOpcode OpcodeForIndex(int index)
 
 static bool IsConditionComparator(SignalCondition *cond)
 {
-	switch(cond->ConditionCode()) {
+	switch (cond->ConditionCode()) {
 		case PSC_NUM_GREEN:
 		case PSC_NUM_RED:
 			return true;
@@ -84,10 +91,11 @@ static bool IsConditionComparator(SignalCondition *cond)
 }
 
 static const StringID _program_condvar[] = {
-	/* PSC_ALWAYS   */  STR_PROGSIG_COND_ALWAYS,
-	/* PSC_NEVER    */  STR_PROGSIG_COND_NEVER,
-	/* PSC_NUM_GREEN */ STR_PROGSIG_CONDVAR_NUM_GREEN,
-	/* PSC_NUM_RED   */ STR_PROGSIG_CONDVAR_NUM_RED,
+	/* PSC_ALWAYS   */    STR_PROGSIG_COND_ALWAYS,
+	/* PSC_NEVER    */    STR_PROGSIG_COND_NEVER,
+	/* PSC_NUM_GREEN */   STR_PROGSIG_CONDVAR_NUM_GREEN,
+	/* PSC_NUM_RED   */   STR_PROGSIG_CONDVAR_NUM_RED,
+	/* PSC_SIGNAL_STATE*/ STR_PROGSIG_COND_SIGNAL_STATE,
 	INVALID_STRING_ID
 };
 
@@ -111,12 +119,12 @@ static const StringID _program_sigstate[] = {
 };
 
 /** Get the string for a condition */
-static char *GetConditionString(SignalCondition *cond, char *buf, char *buflast)
+static char *GetConditionString(SignalCondition *cond, char *buf, char *buflast, bool selected)
 {
 	StringID string = INVALID_STRING_ID;
 	bool comparator = IsConditionComparator(cond);
 	
-	if(comparator) {
+	if (comparator) {
 		SignalVariableCondition *cv = static_cast<SignalVariableCondition*>(cond);
 		string = STR_PROGSIG_COND_COMPARE;
 		SetDParam(0, _program_condvar[cond->ConditionCode()]);
@@ -124,6 +132,12 @@ static char *GetConditionString(SignalCondition *cond, char *buf, char *buflast)
 		SetDParam(2, cv->value);
 	} else {
 		string = _program_condvar[cond->ConditionCode()];
+		if (cond->ConditionCode() == PSC_SIGNAL_STATE) {
+			string = STR_PROGSIG_CONDVAR_SIGNAL_STATE;
+			SetDParam(0, static_cast<SignalStateCondition*>(cond)->IsSignalValid()
+				? STR_PROGSIG_CONDVAR_SIGNAL_STATE_SPECIFIED : STR_PROGSIG_CONDVAR_SIGNAL_STATE_UNSPECIFIED);
+			SetDParam(1, selected ? STR_WHITE : STR_BLACK);
+		}
 	}
 	return GetString(buf, string, buflast);
 }
@@ -154,7 +168,7 @@ static void DrawInstructionString(SignalInstruction *instruction, int y, bool se
 			
 		case PSO_IF: {
 			SignalIf *if_ins = static_cast<SignalIf*>(instruction);
-			GetConditionString(if_ins->condition, condstr, lastof(condstr));
+			GetConditionString(if_ins->condition, condstr, lastof(condstr), selected);
 			SetDParamStr(0, condstr);
 			instruction_string = STR_PROGSIG_IF;
 			break;
@@ -190,13 +204,13 @@ typedef SmallVector<GuiInstruction, 4> GuiInstructionList;
 
 class ProgramWindow: public Window {
 public:
-	ProgramWindow(const WindowDesc *desc, TileIndex tile, Track track)
+	ProgramWindow(const WindowDesc *desc, SignalReference ref)
 	{
-		this->InitNested(desc, GetSignalId(tile, track));
-		this->tile = tile;
-		this->track = track;
+		this->InitNested(desc, (ref.tile << 3) | ref.track);
+		this->tile = ref.tile;
+		this->track = ref.track;
 		this->selected_instruction = -1;
-		program = GetSignalProgram(tile, track);
+		program = GetSignalProgram(ref);
 		RebuildInstructionList();
 	}
 	
@@ -221,15 +235,14 @@ public:
 			
 			case PROGRAM_WIDGET_INSERT: {
 				DEBUG(misc, 5, "Selection is %d", this->selected_instruction);
-				if(this->GetOwner() != _local_company || this->selected_instruction < 1)
+				if (this->GetOwner() != _local_company || this->selected_instruction < 1)
 					return;
 				ShowDropDownMenu(this, _program_insert, -1, PROGRAM_WIDGET_INSERT, 0, 0, 0);
-				break;
-			}
+			} break;
 			
 			case PROGRAM_WIDGET_REMOVE: {
 				SignalInstruction *ins = GetSelected();
-				if(this->GetOwner() != _local_company || !ins)
+				if (this->GetOwner() != _local_company || !ins)
 					return;
 				
 				uint32 p1 = 0;
@@ -237,63 +250,128 @@ public:
 				SB(p1, 5, 16, ins->Id());
 				
 				DoCommandP(this->tile, p1, 0, CMD_REMOVE_SIGNAL_INSTRUCTION | CMD_MSG(STR_ERROR_CAN_T_MODIFY_INSTRUCTION));
-				break;
-			}
+			} break;
 			
 			case PROGRAM_WIDGET_SET_STATE: {
 				SignalInstruction *si = this->GetSelected();
-				if(!si || si->Opcode() != PSO_SET_SIGNAL) return;
+				if (!si || si->Opcode() != PSO_SET_SIGNAL) return;
 				SignalSet *ss = static_cast <SignalSet*>(si);
 				
 				ShowDropDownMenu(this, _program_sigstate, ss->to_state, PROGRAM_WIDGET_SET_STATE, 0, 0, 0);
-				break;
-			}
+			} break;
 				
 			case PROGRAM_WIDGET_COND_VARIABLE: {
 				SignalInstruction *si = this->GetSelected();
-				if(!si || si->Opcode() != PSO_IF) return;
+				if (!si || si->Opcode() != PSO_IF) return;
 				SignalIf *sif = static_cast <SignalIf*>(si);
 				
 				ShowDropDownMenu(this, _program_condvar, sif->condition->ConditionCode(), PROGRAM_WIDGET_COND_VARIABLE, 0, 0, 0);
-				break;
-			}
+			} break;
+			
 			case PROGRAM_WIDGET_COND_COMPARATOR: {
 				SignalInstruction *si = this->GetSelected();
-				if(!si || si->Opcode() != PSO_IF) return;
+				if (!si || si->Opcode() != PSO_IF) return;
 				SignalIf *sif = static_cast <SignalIf*>(si);
-				if(!IsConditionComparator(sif->condition)) return;
+				if (!IsConditionComparator(sif->condition)) return;
 				SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(sif->condition);
 				
 				ShowDropDownMenu(this, _program_comparator, vc->comparator, PROGRAM_WIDGET_COND_COMPARATOR, 0, 0, 0);
-				break;
-			}
+			} break;
 			
 			case PROGRAM_WIDGET_COND_VALUE: {
 				SignalInstruction *si = this->GetSelected();
-				if(!si || si->Opcode() != PSO_IF) return;
+				if (!si || si->Opcode() != PSO_IF) return;
 				SignalIf *sif = static_cast <SignalIf*>(si);
-				if(!IsConditionComparator(sif->condition)) return;
+				if (!IsConditionComparator(sif->condition)) return;
 				SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(sif->condition);
 				
 				SetDParam(0, vc->value);
 				ShowQueryString(STR_JUST_INT, STR_PROGSIG_CONDITION_VALUE_CAPT, 5, 100, this, CS_NUMERAL, QSF_NONE);
-				break;
-			}
+			} break;
 			
-			case PROGRAM_WIDGET_GOTO_SIGNAL:
+			case PROGRAM_WIDGET_COND_GOTO_SIGNAL: {
+				SignalInstruction *si = this->GetSelected();
+				if (!si || si->Opcode() != PSO_IF) return;
+				SignalIf *sif = static_cast <SignalIf*>(si);
+				if (sif->condition->ConditionCode() != PSC_SIGNAL_STATE) return;
+				SignalStateCondition *sc = static_cast<SignalStateCondition*>(sif->condition);
+				
+				if (sc->IsSignalValid()) {
+					ScrollMainWindowToTile(sc->sig_tile);
+				} else {
+					ShowErrorMessage(STR_ERROR_CAN_T_GOTO_UNDEFINED_SIGNAL, STR_EMPTY, WL_INFO);
+				}
+				this->RaiseWidget(PROGRAM_WIDGET_COND_GOTO_SIGNAL);
+			} break;
+			
+			case PROGRAM_WIDGET_COND_SET_SIGNAL: {
+				this->SetWidgetDirty(PROGRAM_WIDGET_COND_SET_SIGNAL);
+				if (this->IsWidgetLowered(PROGRAM_WIDGET_COND_SET_SIGNAL)) {
+					SetObjectToPlaceWnd(ANIMCURSOR_BUILDSIGNALS, PAL_NONE, HT_RECT, this);
+				} else {
+					ResetObjectToPlace();
+				}
+			} break;
+			
+			case PROGRAM_WIDGET_GOTO_SIGNAL: {
 				ScrollMainWindowToTile(this->tile);
 				this->RaiseWidget(PROGRAM_WIDGET_GOTO_SIGNAL);
-				break;
+			} break;
 		}
+	}
+	
+	virtual void OnPlaceObject(Point pt, TileIndex tile)
+	{
+		SignalInstruction *si = this->GetSelected();
+		if (!si || si->Opcode() != PSO_IF) return;
+		SignalIf *sif = static_cast <SignalIf*>(si);
+		if (sif->condition->ConditionCode() != PSC_SIGNAL_STATE) return;
+		
+		TrackBits trackbits = TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, 0));
+		if (trackbits & TRACK_BIT_VERT) { // N-S direction
+			trackbits = (_tile_fract_coords.x <= _tile_fract_coords.y) ? TRACK_BIT_RIGHT : TRACK_BIT_LEFT;
+		}
+
+		if (trackbits & TRACK_BIT_HORZ) { // E-W direction
+			trackbits = (_tile_fract_coords.x + _tile_fract_coords.y <= 15) ? TRACK_BIT_UPPER : TRACK_BIT_LOWER;
+		}
+		Track track = FindFirstTrack(trackbits);
+		
+		Trackdir td = TrackToTrackdir(track);
+		Trackdir tdr = ReverseTrackdir(td);
+		
+		if (HasSignalOnTrackdir(tile, td) && HasSignalOnTrackdir(tile, tdr)) {
+			ShowErrorMessage(STR_ERROR_INVALID_SIGNAL, STR_ERROR_CAN_T_DEPEND_UPON_BIDIRECTIONAL_SIGNALS, WL_INFO);
+			return;
+		} else if (HasSignalOnTrackdir(tile, tdr) && !HasSignalOnTrackdir(tile, td)) {
+			td = tdr;
+		} 
+		
+		if (!HasSignalOnTrackdir(tile, td)) {
+			ShowErrorMessage(STR_ERROR_INVALID_SIGNAL, STR_ERROR_NOT_A_SIGNAL, WL_INFO);
+			return;
+		}
+		
+		uint32 p1 = 0, p2 = 0;
+		SB(p1, 0, 4, this->track);
+		SB(p1, 5, 16, sif->Id());
+		
+		SB(p2, 0, 1, 1);
+		SB(p2, 1, 5,  td);
+		SB(p2, 5, 27, tile);
+		
+		DoCommandP(this->tile, p1, p2, CMD_MODIFY_SIGNAL_INSTRUCTION | CMD_MSG(STR_ERROR_CAN_T_MODIFY_INSTRUCTION));
+		ResetObjectToPlace();
+		this->RaiseWidget(PROGRAM_WIDGET_COND_SET_SIGNAL);
 	}
 	
 	virtual void OnQueryTextFinished(char *str)
 	{
 		if (!StrEmpty(str)) {
 			SignalInstruction *si = this->GetSelected();
-			if(!si || si->Opcode() != PSO_IF) return;
+			if (!si || si->Opcode() != PSO_IF) return;
 			SignalIf *sif = static_cast <SignalIf*>(si);
-			if(!IsConditionComparator(sif->condition)) return;
+			if (!IsConditionComparator(sif->condition)) return;
 			
 			uint value = atoi(str);
 			
@@ -312,7 +390,7 @@ public:
 	virtual void OnDropdownSelect(int widget, int index)
 	{
 		SignalInstruction *ins = this->GetSelected();
-		if(!ins) return;
+		if (!ins) return;
 		
 		switch (widget) {
 			case PROGRAM_WIDGET_INSERT: {
@@ -389,9 +467,9 @@ public:
 		int y = r.top + WD_FRAMERECT_TOP;
 		int line_height = this->GetWidget<NWidgetBase>(PROGRAM_WIDGET_INSTRUCTION_LIST)->resize_y;
 
-		uint no = this->vscroll.GetPosition();
+		int no = this->vscroll.GetPosition();
 
-		for(const GuiInstruction *i = instructions.Begin() + no, *e = instructions.End();
+		for (const GuiInstruction *i = instructions.Begin() + no, *e = instructions.End();
 				i != e; ++i, no++) {
 			/* Don't draw anything if it extends past the end of the window. */
 			if (!this->vscroll.IsVisible(no)) break;
@@ -412,9 +490,9 @@ public:
 			case PROGRAM_WIDGET_COND_VALUE: {
 				SetDParam(0, 0);
 				SignalInstruction *insn = this->GetSelected();
-				if(!insn || insn->Opcode() != PSO_IF) return;
+				if (!insn || insn->Opcode() != PSO_IF) return;
 				SignalIf *si = static_cast<SignalIf*>(insn);
-				if(!IsConditionComparator(si->condition)) return;
+				if (!IsConditionComparator(si->condition)) return;
 				SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(si->condition);
 				SetDParam(0, vc->value);
 			} break;
@@ -424,8 +502,8 @@ public:
 private:
 	SignalInstruction *GetSelected() const
 	{
-		if(this->selected_instruction == -1 
-				|| this->selected_instruction >= this->instructions.Length())
+		if (this->selected_instruction == -1 
+				|| this->selected_instruction >= int(this->instructions.Length()))
 			return NULL;
 		
 		return this->instructions[this->selected_instruction].insn;
@@ -445,7 +523,7 @@ private:
 
 		sel += this->vscroll.GetPosition();
 
-		return (sel <= this->instructions.Length() && sel >= 0) ? sel : -1;
+		return (sel <= int(this->instructions.Length()) && sel >= 0) ? sel : -1;
 	}
 	
 	void RebuildInstructionList()
@@ -457,7 +535,7 @@ private:
 		
 		do {
 			DEBUG(misc, 5, "PSig Gui: Opcode %d", insn->Opcode());
-			switch(insn->Opcode()) {
+			switch (insn->Opcode()) {
 				case PSO_FIRST:
 				case PSO_LAST: {
 					SignalSpecial *s = static_cast<SignalSpecial*>(insn);
@@ -506,22 +584,24 @@ private:
 				
 				default: NOT_REACHED();
 			}
-		} while(insn);
+		} while (insn);
 		
 		this->vscroll.SetCount(this->instructions.Length());
-		if(this->instructions.Length() != old_len)
+		if (this->instructions.Length() != old_len)
 			selected_instruction = -1;
 		UpdateButtonState();
 	}
 	
 	void UpdateButtonState()
 	{
+		ResetObjectToPlace();
 		this->RaiseWidget(PROGRAM_WIDGET_INSERT);
 		this->RaiseWidget(PROGRAM_WIDGET_REMOVE);
 		this->RaiseWidget(PROGRAM_WIDGET_SET_STATE);
 		this->RaiseWidget(PROGRAM_WIDGET_COND_VARIABLE);
 		this->RaiseWidget(PROGRAM_WIDGET_COND_COMPARATOR);
 		this->RaiseWidget(PROGRAM_WIDGET_COND_VALUE);
+		this->RaiseWidget(PROGRAM_WIDGET_COND_GOTO_SIGNAL);
 		
 		NWidgetStacked *left_sel   = this->GetWidget<NWidgetStacked>(PROGRAM_WIDGET_SEL_TOP_LEFT);
 		NWidgetStacked *middle_sel = this->GetWidget<NWidgetStacked>(PROGRAM_WIDGET_SEL_TOP_MIDDLE);
@@ -532,9 +612,11 @@ private:
 		this->DisableWidget(PROGRAM_WIDGET_COND_VARIABLE);
 		this->DisableWidget(PROGRAM_WIDGET_COND_COMPARATOR);
 		this->DisableWidget(PROGRAM_WIDGET_COND_VALUE);
+		this->DisableWidget(PROGRAM_WIDGET_COND_SET_SIGNAL);
+		this->DisableWidget(PROGRAM_WIDGET_COND_GOTO_SIGNAL);
 		
 		// Don't allow modifications if don't own, or have selected invalid instruction
-		if(this->GetOwner() != _local_company || this->selected_instruction < 1) {
+		if (this->GetOwner() != _local_company || this->selected_instruction < 1) {
 			this->DisableWidget(PROGRAM_WIDGET_INSERT);
 			this->DisableWidget(PROGRAM_WIDGET_REMOVE);
 			this->SetDirty();
@@ -544,10 +626,12 @@ private:
 			this->EnableWidget(PROGRAM_WIDGET_REMOVE);
 		}
 		
-		GuiInstruction& gi = this->instructions[this->selected_instruction];
-		switch(gi.insn->Opcode()) {
+		SignalInstruction *insn = GetSelected();
+		if (!insn) return;
+		
+		switch (insn->Opcode()) {
 			case PSO_IF: {
-				SignalIf *i = static_cast<SignalIf*>(gi.insn);
+				SignalIf *i = static_cast<SignalIf*>(insn);
 				left_sel->SetDisplayedPlane(DPL_COND_VARIABLE);
 				middle_sel->SetDisplayedPlane(DPM_COND_COMPARATOR);
 				right_sel->SetDisplayedPlane(DPR_COND_VALUE);
@@ -556,7 +640,7 @@ private:
 				this->GetWidget<NWidgetCore>(PROGRAM_WIDGET_COND_VARIABLE)->widget_data = 
 						_program_condvar[i->condition->ConditionCode()];
 						
-				if(IsConditionComparator(i->condition)) {
+				if (IsConditionComparator(i->condition)) {
 					SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(i->condition);
 					this->EnableWidget(PROGRAM_WIDGET_COND_COMPARATOR);
 					this->EnableWidget(PROGRAM_WIDGET_COND_VALUE);
@@ -564,11 +648,16 @@ private:
 					this->GetWidget<NWidgetCore>(PROGRAM_WIDGET_COND_COMPARATOR)->widget_data = 
 						_program_comparator[vc->comparator];
 					
+				} else if (i->condition->ConditionCode() == PSC_SIGNAL_STATE) {
+					this->EnableWidget(PROGRAM_WIDGET_COND_GOTO_SIGNAL);
+					this->EnableWidget(PROGRAM_WIDGET_COND_SET_SIGNAL);
+					middle_sel->SetDisplayedPlane(DPM_COND_GOTO_SIGNAL);
+					right_sel->SetDisplayedPlane(DPR_COND_SET_SIGNAL);
 				}
 			} break;
 				
 			case PSO_SET_SIGNAL: {
-				SignalSet *s = static_cast<SignalSet*>(gi.insn);
+				SignalSet *s = static_cast<SignalSet*>(insn);
 				left_sel->SetDisplayedPlane(DPL_SET_STATE);
 				this->SetWidgetDisabledState(PROGRAM_WIDGET_SET_STATE, false);
 				this->GetWidget<NWidgetCore>(PROGRAM_WIDGET_SET_STATE)->widget_data = 
@@ -624,10 +713,14 @@ static const NWidgetPart _nested_program_widgets[] = {
 			NWidget(NWID_SELECTION, INVALID_COLOUR, PROGRAM_WIDGET_SEL_TOP_MIDDLE),
 				NWidget(WWT_DROPDOWN, COLOUR_GREY, PROGRAM_WIDGET_COND_COMPARATOR), SetMinimalSize(124, 12), SetFill(1, 0),
 														SetDataTip(STR_NULL, STR_PROGSIG_COND_COMPARATOR_TOOLTIP), SetResize(1, 0),
+				NWidget(WWT_PUSHTXTBTN, COLOUR_GREY, PROGRAM_WIDGET_COND_GOTO_SIGNAL), SetMinimalSize(124, 12), SetFill(1, 0),
+														SetDataTip(STR_PROGSIG_GOTO_SIGNAL, STR_PROGSIG_GOTO_SIGNAL_TOOLTIP), SetResize(1, 0),
 			EndContainer(),
 			NWidget(NWID_SELECTION, INVALID_COLOUR, PROGRAM_WIDGET_SEL_TOP_RIGHT),
 				NWidget(WWT_PUSHTXTBTN, COLOUR_GREY, PROGRAM_WIDGET_COND_VALUE), SetMinimalSize(124, 12), SetFill(1, 0),
 														SetDataTip(STR_BLACK_COMMA, STR_PROGSIG_COND_VALUE_TOOLTIP), SetResize(1, 0),
+				NWidget(WWT_PUSHTXTBTN, COLOUR_GREY, PROGRAM_WIDGET_COND_SET_SIGNAL), SetMinimalSize(124, 12), SetFill(1, 0),
+														SetDataTip(STR_PROGSIG_COND_SET_SIGNAL, STR_PROGSIG_COND_SET_SIGNAL_TOOLTIP), SetResize(1, 0),
 			EndContainer(),
 		EndContainer(),
 		NWidget(WWT_PUSHIMGBTN, COLOUR_GREY, PROGRAM_WIDGET_GOTO_SIGNAL), SetMinimalSize(12, 12), SetDataTip(SPR_ARROW_RIGHT, STR_PROGSIG_GOTO_SIGNAL_TOOLTIP),
@@ -652,10 +745,10 @@ static const WindowDesc _program_desc(
 	_nested_program_widgets, lengthof(_nested_program_widgets)
 );
 
-void ShowSignalProgramWindow(TileIndex tile, Track track)
+void ShowSignalProgramWindow(SignalReference ref)
 {
-	uint32 signal_id = GetSignalId(tile, track);
-	if (BringWindowToFrontById(WC_SIGNAL_PROGRAM, signal_id) != NULL) return;
+	uint32 window_id = (ref.tile << 3) | ref.track;
+	if (BringWindowToFrontById(WC_SIGNAL_PROGRAM, window_id) != NULL) return;
 
-	new ProgramWindow(&_program_desc, tile, track);
+	new ProgramWindow(&_program_desc, ref);
 }

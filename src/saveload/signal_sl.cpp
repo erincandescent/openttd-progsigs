@@ -58,15 +58,20 @@ static void WriteCondition(Buffer &b, SignalCondition *c)
 			SignalVariableCondition *vc = static_cast<SignalVariableCondition*>(c);
 			WriteVLI(b, vc->comparator);
 			WriteVLI(b, vc->value);
-			break;
-		}
+		} break;
+		
+		case PSC_SIGNAL_STATE: {
+			SignalStateCondition *sc = static_cast<SignalStateCondition*>(c);
+			WriteVLI(b, sc->sig_tile);
+			WriteVLI(b, sc->sig_track);
+		} break;
 		
 		default:
 			break;
 	}
 }
 
-static SignalCondition *ReadCondition()
+static SignalCondition *ReadCondition(SignalReference this_sig)
 {
 	SignalConditionCode code = (SignalConditionCode) ReadVLI();
 	switch(code) {
@@ -78,6 +83,13 @@ static SignalCondition *ReadCondition()
 			c->value = ReadVLI();
 			return c;
 		}
+		
+		case PSC_SIGNAL_STATE: {
+			TileIndex ti = (TileIndex) ReadVLI();
+			Trackdir  td = (Trackdir) ReadVLI();
+			return new SignalStateCondition(this_sig, ti, td);
+		}
+		
 		default:
 			return new SignalSimpleCondition(code);
 	}
@@ -90,11 +102,12 @@ static void Save_SPRG()
 	// (This code is to detect bugs and limit their consquences, not to cover them up!)
 	for(ProgramList::iterator i = _signal_programs.begin(), e = _signal_programs.end();
 			i != e; ++i) {
-		uint id = i->first;
-		if(!HasProgrammableSignals(id)) {
-			DEBUG(sl, 0, "Programmable signal information for signal with id %x has been leaked!", id);
+		SignalReference ref = i->first;
+		if(!HasProgrammableSignals(ref)) {
+			DEBUG(sl, 0, "Programmable signal information for (%x, %d) has been leaked!",
+						ref.tile, ref.track);
 			++i;
-			FreeSignalProgram(i->second->tile, i->second->track);
+			FreeSignalProgram(ref);
 			if(i == e) break;
 		}
 	}
@@ -104,7 +117,7 @@ static void Save_SPRG()
 	WriteVLI(b, _signal_programs.size());
 	for(ProgramList::iterator i = _signal_programs.begin(), e = _signal_programs.end();
 			i != e; ++i) {
-		uint id = i->first;
+		SignalReference ref = i->first;
 		SignalProgram *prog = i->second;
 	
 		prog->DebugPrintProgram();
@@ -145,6 +158,7 @@ static void Save_SPRG()
 				
 				case PSO_SET_SIGNAL: {
 					SignalSet *s = static_cast<SignalSet*>(insn);
+					WriteVLI(b, s->next->Id());
 					WriteVLI(b, s->to_state ? 1 : 0);
 					break;
 				}
@@ -209,10 +223,10 @@ static void Load_SPRG()
 		TileIndex tile    = ReadVLI();
 		Track     track   = (Track) ReadVLI();
 		uint instructions = ReadVLI();
-		uint signal_id    = GetSignalId(tile, track);
+		SignalReference ref(tile, track);
 		
 		SignalProgram *sp = new SignalProgram(tile, track, true);
-		_signal_programs[signal_id] = sp;
+		_signal_programs[ref] = sp;
 		
 		for(uint j = 0; j < instructions; j++) {
 			SignalOpcode op = (SignalOpcode) ReadVLI();
@@ -234,7 +248,7 @@ static void Load_SPRG()
 				case PSO_IF: {
 					SignalIf *i = new SignalIf(sp, true);
 					MakeFixup(l, i->GetPrevHandle(), ReadVLI());
-					i->condition = ReadCondition();
+					i->condition = ReadCondition(ref);
 					MakeFixup(l, i->if_true,  ReadVLI()); 
 					MakeFixup(l, i->if_false, ReadVLI()); 
 					MakeFixup(l, i->after, ReadVLI()); 
@@ -252,6 +266,7 @@ static void Load_SPRG()
 				case PSO_SET_SIGNAL: {
 					SignalSet *s = new SignalSet(sp);
 					MakeFixup(l, s->GetPrevHandle(), ReadVLI());
+					MakeFixup(l, s->next, ReadVLI());
 					s->to_state = (SignalState) ReadVLI();
 					if(s->to_state > SIGNAL_STATE_MAX) NOT_REACHED();
 					break;

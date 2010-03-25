@@ -226,7 +226,7 @@ static void GenericPlaceSignals(TileIndex tile)
 		DoCommandP(tile, track, 0, CMD_REMOVE_SIGNALS | CMD_MSG(STR_ERROR_CAN_T_REMOVE_SIGNALS_FROM), CcPlaySound1E);
 	} else if(_program_signal_button) {	
 		if(IsPlainRailTile(tile) && HasTrack(tile, track) && HasSignalOnTrack(tile,track) && IsPresignalProgrammable(tile, track))
-			ShowSignalProgramWindow(tile, track);
+			ShowSignalProgramWindow(SignalReference(tile, track));
 	} else {
 		const Window *w = FindWindowById(WC_BUILD_SIGNAL, 0);
 

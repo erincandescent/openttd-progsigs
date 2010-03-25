@@ -121,12 +121,13 @@ protected:
  * discriminates instructions.
  */
 enum SignalConditionCode {
-	PSC_ALWAYS = 0,     ///< Always true
-	PSC_NEVER = 1,      ///< Always false
-	PSC_NUM_GREEN = 2,  ///< Number of green signals behind this signal
-	PSC_NUM_RED = 3,    ///< Number of red signals behind this signal
+	PSC_ALWAYS = 0,       ///< Always true
+	PSC_NEVER = 1,        ///< Always false
+	PSC_NUM_GREEN = 2,    ///< Number of green signals behind this signal
+	PSC_NUM_RED = 3,      ///< Number of red signals behind this signal
+	PSC_SIGNAL_STATE = 4, ///< State of another signal
 	
-	PSC_MAX = PSC_NUM_RED
+	PSC_MAX = PSC_SIGNAL_STATE
 };
 
 class SignalCondition {
@@ -151,9 +152,9 @@ protected:
  *  evaluated directly from VM state and their condition code.
  */
 class SignalSimpleCondition: public SignalCondition {
-	public:
-		SignalSimpleCondition(SignalConditionCode code);
-		virtual bool Evaluate(SignalVM& vm);
+public:
+	SignalSimpleCondition(SignalConditionCode code);
+	virtual bool Evaluate(SignalVM& vm);
 };
 
 /** Comparator to use for variable conditions. */
@@ -176,23 +177,41 @@ enum SignalConditionField {
 	SCF_VALUE = 1,            ///< the value (integer value)
 };
 
-/** A conditon which based upon comparing a variable and a value. This condition can be
+/** A conditon based upon comparing a variable and a value. This condition can be
  *  considered similar to the conditonal jumps in vehicle orders.
  *
  * The variable is specified by the conditon code, the comparison by @p comparator, and
  * the value to compare against by @p value. The condition returns the result of that value.
  */
 class SignalVariableCondition: public SignalCondition {
+public:
+	/// Constructs a condition refering to the value @p code refers to. Sets the
+	/// comparator and value to sane defaults.
+	SignalVariableCondition(SignalConditionCode code);
+	
+	SignalComparator comparator;
+	uint32 value;
+	
+	/// Evaluates the condition
+	virtual bool Evaluate(SignalVM &vm);
+};
+
+/** A condition which is based upon the state of another signal. */
+class SignalStateCondition: public SignalCondition {
 	public:
-		/// Constructs a condition refering to the value @p code refers to. Sets the
-		/// comparator and value to sane defaults.
-		SignalVariableCondition(SignalConditionCode code);
+		SignalStateCondition(SignalReference this_sig, TileIndex sig_tile, 
+												 Trackdir sig_track);
 		
-		SignalComparator comparator;
-		uint32 value;
+		void SetSignal(TileIndex tile, Trackdir track);
+		bool IsSignalValid();
 		
-		/// Evaluates the condition
-		virtual bool Evaluate(SignalVM &vm);
+		virtual bool Evaluate(SignalVM& vm);
+		virtual ~SignalStateCondition();
+		
+		SignalReference this_sig;
+		TileIndex sig_tile;
+		Trackdir sig_track;
+		SignalState state;
 };
 
 // -- Instructions
@@ -338,51 +357,34 @@ public:
 };
 
 /// The map type used for looking up signal programs
-typedef std::map<uint32, SignalProgram*> ProgramList;
+typedef std::map<SignalReference, SignalProgram*> ProgramList;
 
 /// The global signal program list
 extern ProgramList _signal_programs;
 
-/// Verifies that a SignalID refers to a signal which has a program.
-static inline bool HasProgrammableSignals(uint signalId)
+/// Verifies that a SignalReference refers to a signal which has a program.
+static inline bool HasProgrammableSignals(SignalReference ref)
 {
-	TileIndex tile = GB(signalId, 1, 31);
-	if(GetRailTileType(tile) != RAIL_TILE_SIGNALS)
-		return false;
-	byte pos = GB(signalId, 0, 1) ? 4 : 0;
-	return (SignalType)GB(_m[tile].m2, pos, 3) == SIGTYPE_PROG;
-}
-
-/// Returns whether a track type corresponds to a second signal on the track
-static inline byte IsSecondSignal(Track track)
-{
-	return (track == TRACK_LOWER || track == TRACK_RIGHT) ? 1 : 0;
-}
-
-/// Gets the 32-bit ID which uniquely identifies signals within the program list.
-static inline uint32 GetSignalId(TileIndex t, Track track)
-{
-	assert(GetRailTileType(t) == RAIL_TILE_SIGNALS);
-	uint32 signal_id   = (t << 1) | IsSecondSignal(track);
-	return signal_id;
+	return GetRailTileType(ref.tile) == RAIL_TILE_SIGNALS
+	    && IsPresignalProgrammable(ref.tile, ref.track);
 }
 
 /// Shows the programming window for the signal identified by @p tile and 
 /// @p track.
-void ShowSignalProgramWindow(TileIndex tile, Track track);
+void ShowSignalProgramWindow(SignalReference ref);
 
 /// Gets the signal program for the tile identified by @p t and @p track.
 /// An empty program will be constructed if none is specified
-SignalProgram *GetSignalProgram(TileIndex t, Track track);
+SignalProgram *GetSignalProgram(SignalReference ref);
 
 /// Frees a signal program by tile and track
-void FreeSignalProgram(TileIndex t, Track track);
+void FreeSignalProgram(SignalReference ref);
 
 /// Frees all signal programs (For use when creating a new game)
 void FreeSignalPrograms();
 
 /// Runs the signal program, specifying the following parameters.
-SignalState RunSignalProgram(TileIndex t, Track track, uint num_exits, uint num_green);
+SignalState RunSignalProgram(SignalReference ref, uint num_exits, uint num_green);
 
 ///@}
 

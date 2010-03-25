@@ -1002,7 +1002,7 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 					} else {
 						/* convert the present signal to the chosen type and variant */
 						if(IsPresignalProgrammable(tile, track))
-							FreeSignalProgram(tile, track);
+							FreeSignalProgram(SignalReference(tile, track));
 						SetSignalType(tile, track, sigtype);
 						SetSignalVariant(tile, track, sigvar);
 						if (IsPbsSignal(sigtype) && (GetPresentSignals(tile) & SignalOnTrack(track)) == SignalOnTrack(track)) {
@@ -1014,7 +1014,7 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 					/* cycle through signal types */
 					sigtype = (SignalType)(GetSignalType(tile, track));
 					if(IsProgrammableSignal(sigtype))
-						FreeSignalProgram(tile, track);
+						FreeSignalProgram(SignalReference(tile, track));
 					
 					sigtype = NextSignalType(sigtype, which_signals);
 					SetSignalType(tile, track, sigtype);
@@ -1034,7 +1034,7 @@ CommandCost CmdBuildSingleSignal(TileIndex tile, DoCommandFlag flags, uint32 p1,
 			SetPresentSignals(tile, (GetPresentSignals(tile) & ~SignalOnTrack(track)) | (p2 & SignalOnTrack(track)));
 			SetSignalVariant(tile, track, sigvar);
 			if(IsPresignalProgrammable(tile, track))
-				FreeSignalProgram(tile, track);
+				FreeSignalProgram(SignalReference(tile, track));
 			SetSignalType(tile, track, sigtype);
 		}
 

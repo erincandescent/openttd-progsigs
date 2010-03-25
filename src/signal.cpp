@@ -21,6 +21,15 @@
 #include "table/strings.h"
 #include "programmable_signals.h"
 
+/// List of signals dependent upon this one
+typedef SmallVector<SignalReference, 4>     SignalDependencyList;
+
+/// Map of dependencies. The key identifies the signal,
+/// the value is a list of all of the signals which depend upon that signal.
+typedef std::map<SignalReference, SignalDependencyList> SignalDependencyMap;
+
+static SignalDependencyMap _signal_dependencies;
+static void MarkDependencidesForUpdate(SignalReference sig);
 
 /** these are the maximums used for updating signal blocks */
 enum {
@@ -436,7 +445,7 @@ static void UpdateSignalsAroundSegment(SigInfo info)
 		if (info.flags & SF_TRAIN) {
 			/* train in the segment */
 			newstate = SIGNAL_STATE_RED;
-		} else if(sig == SIGTYPE_PROG && 
+		} else if (sig == SIGTYPE_PROG && 
 				_num_signals_evaluated > _settings_game.construction.maximum_signal_evaluations) {
 			/* too many cascades */
 			newstate = SIGNAL_STATE_RED;
@@ -446,26 +455,26 @@ static void UpdateSignalsAroundSegment(SigInfo info)
 				// Don't count ourselves
 				uint exits = info.num_exits - 1;
 				uint green = info.num_green;
-				if(GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN)
+				if (GetSignalStateByTrackdir(tile, ReverseTrackdir(trackdir)) == SIGNAL_STATE_GREEN)
 					green--;
 				
-				if(sig == SIGTYPE_PROG) { /* Programmable */
+				if (sig == SIGTYPE_PROG) { /* Programmable */
 					_num_signals_evaluated++;
 					
-					if(!RunSignalProgram(tile, track, exits, green))
+					if (!RunSignalProgram(SignalReference(tile, track), exits, green))
 						newstate = SIGNAL_STATE_RED;
 				} else { /* traditional combo */
-					if(!green && exits)
+					if (!green && exits)
 						newstate = SIGNAL_STATE_RED;
 				}
 			} else { // entry, at least one exit, no green exit
 				if (IsEntrySignal(sig)) {
 					if (sig == SIGTYPE_PROG) {
 						_num_signals_evaluated++;
-						if(!RunSignalProgram(tile, track, info.num_exits, info.num_green))
+						if (!RunSignalProgram(SignalReference(tile, track), info.num_exits, info.num_green))
 							newstate = SIGNAL_STATE_RED;
 					} else { /* traditional combo */
-						if(!info.num_green && info.num_exits) newstate = SIGNAL_STATE_RED;
+						if (!info.num_green && info.num_exits) newstate = SIGNAL_STATE_RED;
 					}
 				}
 			}
@@ -477,6 +486,9 @@ static void UpdateSignalsAroundSegment(SigInfo info)
 				/* for pre-signal exits, add block to the global set */
 				DiagDirection exitdir = TrackdirToExitdir(ReverseTrackdir(trackdir));
 				_globset.Add(tile, exitdir); // do not check for full global set, first update all signals
+				
+				// Progsig dependencies
+				MarkDependencidesForUpdate(SignalReference(tile, track));
 			}
 			SetSignalStateByTrackdir(tile, trackdir, newstate);
 			MarkTileDirtyByTile(tile);
@@ -699,23 +711,66 @@ void SetSignalsOnBothDir(TileIndex tile, Track track, Owner owner)
 	UpdateSignalsInBuffer(owner);
 }
 
+void AddSignalDependency(SignalReference on, SignalReference dep)
+{	
+	assert(GetTileOwner(on.tile) == GetTileOwner(dep.tile));
+	SignalDependencyList &dependencies = _signal_dependencies[on];
+	(*dependencies.Append()) = dep;
+}
+
+void RemoveSignalDependency(SignalReference on, SignalReference dep)
+{
+	SignalDependencyList &dependencies = _signal_dependencies[on];
+	SignalReference *ob = dependencies.Find(dep);
+	assert(ob != dependencies.End());
+	dependencies.Erase(ob);
+	if (dependencies.Length() == 0)
+		_signal_dependencies.erase(on);
+}
+
+void FreeSignalDependencies()
+{
+	_signal_dependencies.clear();
+}
+
+static void MarkDependencidesForUpdate(SignalReference on)
+{
+	SignalDependencyMap::iterator f = _signal_dependencies.find(on);
+	if (f == _signal_dependencies.end()) return;
+	
+	SignalDependencyList &dependencies = f->second;
+	for (SignalReference *i = dependencies.Begin(), *e = dependencies.End();
+			i != e; ++i) {
+		assert(GetTileOwner(i->tile) == GetTileOwner(on.tile));
+	
+		Trackdir td = TrackToTrackdir(i->track);
+		_globset.Add(i->tile, TrackdirToExitdir(td));
+		_globset.Add(i->tile, TrackdirToExitdir(ReverseTrackdir(td)));
+	}
+}
+
 void CheckRemoveSignalsFromTile(TileIndex tile)
 {
-	if(!HasSignals(tile)) return;
+	if (!HasSignals(tile)) return;
 	
 	TrackBits tb = GetTrackBits(tile);
 	Track tr;
-	while((tr = RemoveFirstTrack(&tb)) != INVALID_TRACK) {
-		if(HasSignalOnTrack(tile, tr)) CheckRemoveSignal(tile, tr);
+	while ((tr = RemoveFirstTrack(&tb)) != INVALID_TRACK) {
+		if (HasSignalOnTrack(tile, tr)) CheckRemoveSignal(tile, tr);
 	}
 }
 
 void CheckRemoveSignal(TileIndex tile, Track track)
 {
-	if(!HasSignalOnTrack(tile, track)) return;
+	if (!HasSignalOnTrack(tile, track)) return;
 	
 	SignalType t = GetSignalType(tile, track);
-	if(IsProgrammableSignal(t)) {
-		FreeSignalProgram(tile, track);
+	if (IsProgrammableSignal(t)) {
+		FreeSignalProgram(SignalReference(tile, track));
 	}
+	
+	SignalDependencyMap::iterator i = _signal_dependencies.find(SignalReference(tile, track)),
+		e = _signal_dependencies.end();
+	if (i != e)
+		_signal_dependencies.erase(i);
 }

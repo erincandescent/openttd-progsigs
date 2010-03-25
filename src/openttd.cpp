@@ -349,6 +349,7 @@ static void ShutdownGame()
 	_engine_pool.CleanPool();
 	_company_pool.CleanPool();
 	FreeSignalPrograms();
+	FreeSignalDependencies();
 
 	free(_config_file);
 

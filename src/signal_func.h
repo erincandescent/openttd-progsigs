@@ -122,6 +122,18 @@ void CheckRemoveSignalsFromTile(TileIndex tile);
  */
 void CheckRemoveSignal(TileIndex tile, Track track);
 
+/** Adds a signal dependency
+ *  The signal identified by @p dep will be marked as dependend upon
+ *  the signal identified by @p on
+ */
+void AddSignalDependency(SignalReference on, SignalReference dep);
+
+/// Removes a signal dependency. Arguments same as AddSignalDependency
+void RemoveSignalDependency(SignalReference on, SignalReference dep);
+
+/// Frees signal dependencies (for newgame/load)
+void FreeSignalDependencies();
+
 SigSegState UpdateSignalsOnSegment(TileIndex tile, DiagDirection side, Owner owner);
 void SetSignalsOnBothDir(TileIndex tile, Track track, Owner owner);
 void AddTrackToSignalBuffer(TileIndex tile, Track track, Owner owner);

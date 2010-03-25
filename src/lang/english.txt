@@ -1954,13 +1954,16 @@ STR_ERR_PROGSIG_INVALID_SIGNAL_STATE                            :{WHITE}That sig
 STR_ERR_PROGSIG_INVALID_CONDITION                               :{WHITE}That condition is invalid
 STR_ERR_PROGSIG_INVALID_CONDITION_FIELD                         :{WHITE}That field is not valid for the condition
 STR_ERR_PROGSIG_INVALID_COMPARATOR                              :{WHITE}That comparator is not valid
-
+STR_ERR_PROGSIG_INVALID_SIGNAL                                  :{WHITE}Invalid signal selected
 
 STR_PROGSIG_CAPTION                                             :{WHITE}Signal Program
 STR_PROGSIG_COND_VARIABLE_TOOLTIP                               :{BLACK}Condition to compare upon
 STR_PROGSIG_COND_COMPARATOR_TOOLTIP                             :{BLACK}Operator to use to compare variable
 STR_PROGSIG_COND_VALUE_TOOLTIP                                  :{BLACK}Value to compare variable against
 STR_PROGSIG_SIGNAL_STATE_TOOLTIP                                :{BLACK}Set signal to state
+STR_PROGSIG_COND_SET_SIGNAL                                     :{BLACK}Set signal
+STR_PROGSIG_COND_SET_SIGNAL_TOOLTIP                             :{BLACK}Set the signal to be looked at
+STR_PROGSIG_GOTO_SIGNAL                                         :{BLACK}Goto signal
 STR_PROGSIG_GOTO_SIGNAL_TOOLTIP                                 :{BLACK}Go to this signal
 STR_PROGSIG_INSERT_TOOLTIP                                      :{BLACK}Insert an instruction
 STR_PROGSIG_REMOVE_TOOLTIP                                      :{BLACK}Remove the selected instruction
@@ -1982,6 +1985,10 @@ STR_PROGSIG_SET_SIGNAL                                          :Make signal {ST
 STR_PROGSIG_COND_ALWAYS                                         :always
 STR_PROGSIG_COND_NEVER                                          :never
 STR_PROGSIG_COND_COMPARE                                        :{STRING} {STRING} {NUM}
+STR_PROGSIG_COND_SIGNAL_STATE                                   :signal state
+STR_PROGSIG_CONDVAR_SIGNAL_STATE                                :{STRING1} is green
+STR_PROGSIG_CONDVAR_SIGNAL_STATE_SPECIFIED                      :specified signal
+STR_PROGSIG_CONDVAR_SIGNAL_STATE_UNSPECIFIED                    :{RED}unspecified signal{STRING}
 STR_PROGSIG_CONDVAR_NUM_RED                                     :red signals
 STR_PROGSIG_CONDVAR_NUM_GREEN                                   :green signals
 
@@ -1990,6 +1997,10 @@ STR_PROGSIG_CONDITION_VALUE_CAPT                                :{WHITE}Conditon
 STR_ERROR_CAN_T_INSERT_INSTRUCTION                              :{WHITE}Can't insert instruction
 STR_ERROR_CAN_T_MODIFY_INSTRUCTION                              :{WHITE}Can't modify instruction
 STR_ERROR_CAN_T_REMOVE_INSTRUCTION                              :{WHITE}Can't remove instruction
+STR_ERROR_CAN_T_GOTO_UNDEFINED_SIGNAL                           :{WHITE}Can't go to undefined signal
+STR_ERROR_NOT_A_SIGNAL                                          :{WHITE}Not a signal
+STR_ERROR_CAN_T_DEPEND_UPON_BIDIRECTIONAL_SIGNALS               :{WHITE}Cannot conditionally depend upon bidirectional signals
+STR_ERROR_INVALID_SIGNAL                                        :{WHITE}Invalid signal
 
 # Bridge selection window
 STR_SELECT_RAIL_BRIDGE_CAPTION                                  :{WHITE}Select Rail Bridge
@@ -4164,7 +4175,8 @@ STR_RED_STRING                                                  :{RED}{STRING}
 STR_WHITE_STRING                                                :{WHITE}{STRING}
 STR_TINY_BLACK_VEHICLE                                          :{TINYFONT}{BLACK}{VEHICLE}
 STR_TINY_RIGHT_ARROW                                            :{TINYFONT}{RIGHTARROW}
-
+STR_WHITE                                                       :{WHITE}
+STR_BLACK                                                       :{BLACK}
 STR_BLACK_1                                                     :{BLACK}1
 STR_BLACK_2                                                     :{BLACK}2
 STR_BLACK_3                                                     :{BLACK}3

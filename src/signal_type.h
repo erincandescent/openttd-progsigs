@@ -11,6 +11,8 @@
 
 #ifndef SIGNAL_TYPE_H
 #define SIGNAL_TYPE_H
+#include "track_type.h"
+#include "tile_type.h"
 
 /** Variant of the signal, i.e. how does the signal look? */
 enum SignalVariant {
@@ -32,5 +34,19 @@ enum SignalType {
 	SIGTYPE_FIRST_PBS_SPRITE = SIGTYPE_PBS
 };
 
+
+/** Reference to a signal
+ *
+ * A reference to a signal by its tile and track
+ */
+struct SignalReference {
+	inline SignalReference(TileIndex t, Track tr) : tile(t), track(tr) {}
+	inline bool operator<(const SignalReference& o) const { return tile < o.tile || (tile == o.tile && track < o.track); }
+	inline bool operator==(const SignalReference& o) const { return tile == o.tile && track == o.track; }
+	inline bool operator!=(const SignalReference& o) const { return tile != o.tile || track != o.track; }
+	
+	TileIndex tile; 
+	Track track;
+};
 
 #endif /* SIGNAL_TYPE_H */
