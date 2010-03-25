@@ -110,6 +110,7 @@ SignalVariableCondition::SignalVariableCondition(SignalConditionCode code)
 		case SGC_MORE_THAN_EQUALS:  return var_val >= this->value;
 		case SGC_IS_TRUE:           return var_val;
 		case SGC_IS_FALSE:          return !var_val;
+		default: NOT_REACHED();
 	}
 }
 
@@ -544,6 +545,9 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 						
 					case PSC_SIGNAL_STATE:
 						cond = new SignalStateCondition(SignalReference(tile, track), INVALID_TILE, INVALID_TRACKDIR);
+						break;
+						
+					default: NOT_REACHED();
 				}
 				si->SetCondition(cond);
 			} else { // modify condition
