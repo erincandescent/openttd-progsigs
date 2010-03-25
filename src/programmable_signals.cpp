@@ -403,7 +403,7 @@ void SignalProgram::DebugPrintProgram()
 			i != e; i++)
 	{
 		SignalInstruction *insn = *i;
-		DEBUG(misc, 5, " %ld: Opcode %d, prev %d", i - b, int(insn->Opcode()), 
+		DEBUG(misc, 5, " %ld: Opcode %d, prev %d", long(i - b), int(insn->Opcode()), 
 					int(insn->Previous() ? insn->Previous()->Id() : -1));
 	}
 }
