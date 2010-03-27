@@ -33,6 +33,7 @@ SignalProgram::SignalProgram(TileIndex tile, Track track, bool raw)
 
 SignalProgram::~SignalProgram()
 {
+	this->DebugPrintProgram();
 	this->first_instruction->Remove();
 	delete this->first_instruction;
 	delete this->last_instruction;
@@ -236,6 +237,7 @@ SignalIf::PseudoInstruction::PseudoInstruction(SignalProgram *prog, SignalIf *bl
 {
 	if (opcode == PSO_IF_ELSE) {
 		this->block->if_true = NULL;
+		while(this->block->if_false) this->block->if_false->Remove();
 	} else if (opcode == PSO_IF_ENDIF) {
 		this->block->if_false = NULL;
 	} else NOT_REACHED();
@@ -272,7 +274,6 @@ SignalIf::SignalIf(SignalProgram *prog, bool raw)
 {
 	delete this->condition;
 	while (this->if_true)  this->if_true->Remove();
-	while (this->if_false) this->if_false->Remove();
 	
 	this->previous->SetNext(this->after);
 	this->after->SetPrevious(this->previous);
