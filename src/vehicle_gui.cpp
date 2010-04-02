@@ -234,6 +234,11 @@ struct RefitOption {
 	{
 		return other.cargo != this->cargo || other.value != this->value;
 	}
+
+	FORCEINLINE bool operator == (const RefitOption &other) const
+	{
+		return other.cargo == this->cargo && other.value == this->value;
+	}
 };
 
 typedef SmallVector<RefitOption, 32> RefitList;
@@ -258,7 +263,7 @@ static void BuildRefitList(const Vehicle *v, RefitList *refit_list)
 
 		/* Loop through all cargos in the refit mask */
 		const CargoSpec *cs;
-		FOR_ALL_CARGOSPECS(cs) {
+		FOR_ALL_SORTED_CARGOSPECS(cs) {
 			CargoID cid = cs->Index();
 			/* Skip cargo type if it's not listed */
 			if (!HasBit(cmask, cid)) continue;
@@ -378,6 +383,35 @@ struct RefitWindow : public Window {
 		BuildRefitList(v, &this->list);
 		if (v->type == VEH_TRAIN) this->length = CountVehiclesInChain(v);
 		this->vscroll.SetCount(this->list.Length());
+	}
+
+	virtual void OnInit()
+	{
+		if (this->cargo != NULL) {
+			/* Store the RefitOption currently in use. */
+			RefitOption current_refit_option = *(this->cargo);
+
+			/* Rebuild the refit list */
+			BuildRefitList(Vehicle::Get(this->window_number), &this->list);
+			this->vscroll.SetCount(this->list.Length());
+			this->sel = -1;
+			this->cargo = NULL;
+			for (uint i = 0; i < this->list.Length(); i++) {
+				if (this->list[i] == current_refit_option) {
+					this->sel = i;
+					this->cargo = &this->list[i];
+					this->vscroll.ScrollTowards(i);
+					break;
+				}
+			}
+
+			/* If the selected refit option was not found, scroll the window to the initial position. */
+			if (this->sel == -1) this->vscroll.ScrollTowards(0);
+		} else {
+			/* Rebuild the refit list */
+			BuildRefitList(Vehicle::Get(this->window_number), &this->list);
+			this->vscroll.SetCount(this->list.Length());
+		}
 	}
 
 	virtual void OnPaint()
@@ -1398,6 +1432,40 @@ struct VehicleDetailsWindow : Window {
 		this->tab = TDW_TAB_CARGO;
 	}
 
+	virtual void OnInvalidateData(int data)
+	{
+		const Vehicle *v = Vehicle::Get(this->window_number);
+		if (v->type == VEH_ROAD) {
+			const NWidgetBase *nwid_info = this->GetWidget<NWidgetBase>(VLD_WIDGET_MIDDLE_DETAILS);
+			uint aimed_height = this->GetRoadVehDetailsHeight(v);
+			/* If the number of articulated parts changes, the size of the window must change too. */
+			if (aimed_height != nwid_info->current_y) {
+				this->ReInit();
+			}
+		}
+	}
+
+	/**
+	 * Gets the desired height for the road vehicle details panel.
+	 * @param v Road vehicle being shown.
+	 * @return Desired height in pixels.
+	 */
+	uint GetRoadVehDetailsHeight(const Vehicle *v)
+	{
+		uint desired_height;
+		if (RoadVehicle::From(v)->HasArticulatedPart()) {
+			/* An articulated RV has its text drawn under the sprite instead of after it, hence 15 pixels extra. */
+			desired_height = WD_FRAMERECT_TOP + 15 + 3 * FONT_HEIGHT_NORMAL + 2 + WD_FRAMERECT_BOTTOM;
+			/* Add space for the cargo amount for each part. */
+			for (const Vehicle *u = v; u != NULL; u = u->Next()) {
+				if (u->cargo_cap != 0) desired_height += FONT_HEIGHT_NORMAL + 1;
+			}
+		} else {
+			desired_height = WD_FRAMERECT_TOP + 4 * FONT_HEIGHT_NORMAL + 3 + WD_FRAMERECT_BOTTOM;
+		}
+		return desired_height;
+	}
+
 	virtual void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize)
 	{
 		switch (widget) {
@@ -1425,16 +1493,7 @@ struct VehicleDetailsWindow : Window {
 				const Vehicle *v = Vehicle::Get(this->window_number);
 				switch (v->type) {
 					case VEH_ROAD:
-						if (RoadVehicle::From(v)->HasArticulatedPart()) {
-							/* An articulated RV has its text drawn under the sprite instead of after it, hence 15 pixels extra. */
-							size->height = WD_FRAMERECT_TOP + 15 + 3 * FONT_HEIGHT_NORMAL + 2 + WD_FRAMERECT_BOTTOM;
-							/* Add space for the cargo amount for each part. */
-							for (const Vehicle *u = v; u != NULL; u = u->Next()) {
-								if (u->cargo_cap != 0) size->height += FONT_HEIGHT_NORMAL + 1;
-							}
-						} else {
-							size->height = WD_FRAMERECT_TOP + 4 * FONT_HEIGHT_NORMAL + 3 + WD_FRAMERECT_BOTTOM;
-						}
+						size->height = this->GetRoadVehDetailsHeight(v);
 						break;
 
 					case VEH_SHIP:

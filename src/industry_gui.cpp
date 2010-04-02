@@ -96,6 +96,40 @@ static inline void GetAllCargoSuffixes(uint cb_offset, CargoSuffixType cst, cons
 	}
 }
 
+IndustryType _sorted_industry_types[NUM_INDUSTRYTYPES];
+
+/** Sort industry types by their name. */
+static int CDECL IndustryTypeNameSorter(const IndustryType *a, const IndustryType *b)
+{
+	static char industry_name[2][64];
+
+	const IndustrySpec *indsp1 = GetIndustrySpec(*a);
+	SetDParam(0, indsp1->name);
+	GetString(industry_name[0], STR_JUST_STRING, lastof(industry_name[0]));
+
+	const IndustrySpec *indsp2 = GetIndustrySpec(*b);
+	SetDParam(0, indsp2->name);
+	GetString(industry_name[1], STR_JUST_STRING, lastof(industry_name[1]));
+
+	int r = strcmp(industry_name[0], industry_name[1]);
+
+	/* If the names are equal, sort by industry type. */
+	return (r != 0) ? r : (*a - *b);
+}
+
+/** Initialize the list of sorted industry types.
+ */
+void SortIndustryTypes()
+{
+	/* Add each industry type to the list. */
+	for (IndustryType i = 0; i < NUM_INDUSTRYTYPES; i++) {
+		_sorted_industry_types[i] = i;
+	}
+
+	/* Sort industry types by name. */
+	QSortT(_sorted_industry_types, NUM_INDUSTRYTYPES, &IndustryTypeNameSorter);
+}
+
 /** Command callback. In case of failure to build an industry, show an error message.
  * @param result Result of the command.
  * @param tile   Tile where the industry is placed.
@@ -183,7 +217,8 @@ class BuildIndustryWindow : public Window {
 		 * The tests performed after the enabled allow to load the industries
 		 * In the same way they are inserted by grf (if any)
 		 */
-		for (IndustryType ind = 0; ind < NUM_INDUSTRYTYPES; ind++) {
+		for (uint8 i = 0; i < NUM_INDUSTRYTYPES; i++) {
+			IndustryType ind = _sorted_industry_types[i];
 			const IndustrySpec *indsp = GetIndustrySpec(ind);
 			if (indsp->enabled) {
 				/* Rule is that editor mode loads all industries.
@@ -220,12 +255,14 @@ public:
 		this->selected_index = -1;
 		this->selected_type = INVALID_INDUSTRYTYPE;
 
-		/* Initialize arrays */
-		this->SetupArrays();
-
 		this->callback_timer = DAY_TICKS;
 
 		this->InitNested(&_build_industry_desc, 0);
+	}
+
+	virtual void OnInit()
+	{
+		this->SetupArrays();
 	}
 
 	virtual void UpdateWidgetSize(int widget, Dimension *size, const Dimension &padding, Dimension *fill, Dimension *resize)
@@ -972,18 +1009,14 @@ protected:
 	/** Sort industries by production and name */
 	static int CDECL IndustryProductionSorter(const Industry * const *a, const Industry * const *b)
 	{
-		int r = 0;
-
-		if ((*a)->produced_cargo[0] == CT_INVALID) {
-			if ((*b)->produced_cargo[0] != CT_INVALID) return -1;
-		} else {
-			if ((*b)->produced_cargo[0] == CT_INVALID) return 1;
-
-			r = ((*a)->last_month_production[0] + (*a)->last_month_production[1]) -
-			    ((*b)->last_month_production[0] + (*b)->last_month_production[1]);
+		uint prod_a = 0, prod_b = 0;
+		for (uint i = 0; i < lengthof((*a)->produced_cargo); i++) {
+			if ((*a)->produced_cargo[i] != CT_INVALID) prod_a += (*a)->last_month_production[i];
+			if ((*b)->produced_cargo[i] != CT_INVALID) prod_b += (*b)->last_month_production[i];
 		}
+		int r = prod_a - prod_b;
 
-		return (r == 0) ? IndustryNameSorter(a, b) : r;
+		return (r == 0) ? IndustryTypeSorter(a, b) : r;
 	}
 
 	/** Sort industries by transported cargo and name */

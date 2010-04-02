@@ -6809,6 +6809,11 @@ static void AfterLoadGRFs()
 	/* Add all new industries to the industry array. */
 	FinaliseIndustriesArray();
 
+	InitializeSortedCargoSpecs();
+
+	/* Sort the list of industry types. */
+	SortIndustryTypes();
+
 	/* Create dynamic list of industry legends for smallmap_gui.cpp */
 	BuildIndustriesLegend();
 
