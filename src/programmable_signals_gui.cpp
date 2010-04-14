@@ -752,3 +752,4 @@ void ShowSignalProgramWindow(SignalReference ref)
 
 	new ProgramWindow(&_program_desc, ref);
 }
+

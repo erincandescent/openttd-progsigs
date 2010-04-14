@@ -760,17 +760,36 @@ void CheckRemoveSignalsFromTile(TileIndex tile)
 	}
 }
 
+static void NotifyRemovingDependentSignal(SignalReference on, SignalReference by)
+{
+    SignalType t = GetSignalType(by.tile, by.track);
+    if (IsProgrammableSignal(t)) {
+        RemoveProgramDependencies(by, on);
+    } else DEBUG(misc, 0, "Removing dependency held by non-programmable signal (Unexpected)");
+}
+
 void CheckRemoveSignal(TileIndex tile, Track track)
 {
 	if (!HasSignalOnTrack(tile, track)) return;
+	SignalReference thisRef(tile, track);
 	
 	SignalType t = GetSignalType(tile, track);
 	if (IsProgrammableSignal(t)) {
-		FreeSignalProgram(SignalReference(tile, track));
+		FreeSignalProgram(thisRef);
 	}
 	
 	SignalDependencyMap::iterator i = _signal_dependencies.find(SignalReference(tile, track)),
-		e = _signal_dependencies.end();
-	if (i != e)
+			e = _signal_dependencies.end();
+
+	if (i != e) {
+		SignalDependencyList &dependencies = i->second;
+
+		for (SignalReference *ir = dependencies.Begin(), *er = dependencies.End(); ir != er; ++ir) {
+			assert(GetTileOwner(ir->tile) == GetTileOwner(tile));
+			NotifyRemovingDependentSignal(thisRef, *ir);
+		}
+
 		_signal_dependencies.erase(i);
+	}
 }
+

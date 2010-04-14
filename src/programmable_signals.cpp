@@ -130,6 +130,11 @@ bool SignalStateCondition::IsSignalValid()
 	return IsValidTile(this->sig_tile) && HasSignalOnTrackdir(this->sig_tile, this->sig_track);
 }
 
+void SignalStateCondition::Invalidate()
+{
+    this->sig_tile = INVALID_TILE;
+}
+
 void SignalStateCondition::SetSignal(TileIndex tile, Trackdir track)
 {
 	if (this->IsSignalValid())
@@ -398,6 +403,26 @@ SignalState RunSignalProgram(SignalReference ref, uint num_exits, uint num_green
 	return vm.state;
 }
 
+void RemoveProgramDependencies(SignalReference by, SignalReference on)
+{
+	SignalProgram *prog = GetSignalProgram(by);
+	for (SignalInstruction **b = prog->instructions.Begin(), **i = b, **e = prog->instructions.End();
+			i != e; i++) {
+		SignalInstruction *insn = *i;
+		if (insn->Opcode() == PSO_IF) {
+			SignalIf* ifi = static_cast<SignalIf*>(insn);
+			if (ifi->condition->ConditionCode() == PSC_SIGNAL_STATE) {
+				SignalStateCondition* c = static_cast<SignalStateCondition*>(ifi->condition);
+				if(c->sig_tile == by.tile && TrackdirToTrack(c->sig_track) == by.track)
+					c->Invalidate();
+			}
+		}
+	}
+
+	AddTrackToSignalBuffer(by.tile, by.track, GetTileOwner(by.tile));
+	UpdateSignalsInBuffer();
+}
+
 void SignalProgram::DebugPrintProgram()
 {
 	DEBUG(misc, 5, "Program %p listing", this);
@@ -653,3 +678,4 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	InvalidateWindowData(WC_SIGNAL_PROGRAM, (tile << 3) | track);
 	return CommandCost();
 }
+

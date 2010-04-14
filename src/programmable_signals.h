@@ -204,6 +204,7 @@ class SignalStateCondition: public SignalCondition {
 		
 		void SetSignal(TileIndex tile, Trackdir track);
 		bool IsSignalValid();
+        void Invalidate();
 		
 		virtual bool Evaluate(SignalVM& vm);
 		virtual ~SignalStateCondition();
@@ -386,6 +387,8 @@ void FreeSignalPrograms();
 /// Runs the signal program, specifying the following parameters.
 SignalState RunSignalProgram(SignalReference ref, uint num_exits, uint num_green);
 
+/// Remove dependencies on signal @p on from @p by
+void RemoveProgramDependencies(SignalReference by, SignalReference on);
 ///@}
 
 #endif
