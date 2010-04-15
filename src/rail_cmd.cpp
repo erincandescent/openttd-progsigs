@@ -840,7 +840,7 @@ CommandCost CmdBuildTrainDepot(TileIndex tile, DoCommandFlag flags, uint32 p1, u
 
 	Slope tileh = GetTileSlope(tile, NULL);
 
-	DiagDirection dir = Extract<DiagDirection, 0>(p2);
+	DiagDirection dir = Extract<DiagDirection, 0, 2>(p2);
 
 	/* Prohibit construction if
 	 * The tile is non-flat AND
@@ -2654,10 +2654,12 @@ static void GetTileDesc_Track(TileIndex tile, TileDesc *td)
 
 		case RAIL_TILE_DEPOT:
 			td->str = STR_LAI_RAIL_DESCRIPTION_TRAIN_DEPOT;
-			if (td->rail_speed > 0) {
-				td->rail_speed = min(td->rail_speed, 61);
-			} else {
-				td->rail_speed = 61;
+			if (_settings_game.vehicle.train_acceleration_model != AM_ORIGINAL) {
+				if (td->rail_speed > 0) {
+					td->rail_speed = min(td->rail_speed, 61);
+				} else {
+					td->rail_speed = 61;
+				}
 			}
 			break;
 

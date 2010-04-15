@@ -88,11 +88,11 @@ struct GraphLegendWindow : Window {
 		ToggleBit(_legend_excluded_companies, widget - GLW_FIRST_COMPANY);
 		this->ToggleWidgetLoweredState(widget);
 		this->SetDirty();
-		SetWindowDirty(WC_INCOME_GRAPH, 0);
-		SetWindowDirty(WC_OPERATING_PROFIT, 0);
-		SetWindowDirty(WC_DELIVERED_CARGO, 0);
-		SetWindowDirty(WC_PERFORMANCE_HISTORY, 0);
-		SetWindowDirty(WC_COMPANY_VALUE, 0);
+		InvalidateWindowData(WC_INCOME_GRAPH, 0);
+		InvalidateWindowData(WC_OPERATING_PROFIT, 0);
+		InvalidateWindowData(WC_DELIVERED_CARGO, 0);
+		InvalidateWindowData(WC_PERFORMANCE_HISTORY, 0);
+		InvalidateWindowData(WC_COMPANY_VALUE, 0);
 	}
 
 	virtual void OnInvalidateData(int data)
@@ -199,25 +199,33 @@ protected:
 	byte colours[GRAPH_MAX_DATASETS];
 	OverflowSafeInt64 cost[GRAPH_MAX_DATASETS][GRAPH_NUM_MONTHS]; ///< Stored costs for the last #GRAPH_NUM_MONTHS months
 
-	int64 GetHighestValue(int initial_highest_value) const
+	/**
+	 * Get the highest value of the graph's data. Excluded data is ignored to allow showing smaller values in
+	 * better detail when disabling higher ones.
+	 * @return Highest value of the graph (ignoring disabled data).
+	 */
+	int64 GetHighestValue() const
 	{
-		OverflowSafeInt64 highest_value = initial_highest_value;
+		OverflowSafeInt64 highest_value = 0;
 
 		for (int i = 0; i < this->num_dataset; i++) {
-			if (!HasBit(this->excluded_data, i)) {
-				for (int j = 0; j < this->num_on_x_axis; j++) {
-					OverflowSafeInt64 datapoint = this->cost[i][j];
+			if (HasBit(this->excluded_data, i)) continue;
+			for (int j = 0; j < this->num_on_x_axis; j++) {
+				OverflowSafeInt64 datapoint = this->cost[i][j];
 
-					if (datapoint != INVALID_DATAPOINT) {
-						/* For now, if the graph has negative values the scaling is
-						 * symmetrical about the x axis, so take the absolute value
-						 * of each data point. */
-						highest_value = max(highest_value, abs(datapoint));
-					}
+				if (datapoint != INVALID_DATAPOINT) {
+					/* For now, if the graph has negative values the scaling is
+					 * symmetrical about the x axis, so take the absolute value
+					 * of each data point. */
+					highest_value = max(highest_value, abs(datapoint));
 				}
 			}
 		}
 
+		/* Prevent showing the highest value too close to the graph upper limit. */
+		highest_value = (11 * highest_value) / 10;
+		/* Avoid using zero as the highest value. */
+		if (highest_value == 0) highest_value = GRAPH_NUM_LINES_Y - 1;
 		/* Round up highest_value so that it will divide cleanly into the number of
 		 * axis labels used. */
 		int round_val = highest_value % (GRAPH_NUM_LINES_Y - 1);
@@ -274,13 +282,7 @@ protected:
 		r.left   += 9;
 		r.right  -= 5;
 
-		/* Start of with a highest_value of twice the height of the graph in pixels.
-		 * It's a bit arbitrary, but it makes the cargo payment graph look a little
-		 * nicer, and prevents division by zero when calculating where the datapoint
-		 * should be drawn. */
-		highest_value = r.bottom - r.top + 1;
-		if (!this->has_negative_values) highest_value *= 2;
-		highest_value = GetHighestValue(highest_value);
+		highest_value = GetHighestValue();
 
 		/* Get width for Y labels */
 		int label_width = GetYLabelWidth(highest_value);
@@ -522,6 +524,11 @@ public:
 	virtual void OnTick()
 	{
 		this->UpdateStatistics(false);
+	}
+
+	virtual void OnInvalidateData(int data)
+	{
+		this->UpdateStatistics(true);
 	}
 
 	/**
@@ -806,6 +813,8 @@ enum CargoPaymentRatesWidgets {
 	CPW_HEADER,
 	CPW_GRAPH,
 	CPW_FOOTER,
+	CPW_ENABLE_CARGOS,
+	CPW_DISABLE_CARGOS,
 	CPW_CARGO_FIRST,
 };
 
@@ -847,7 +856,7 @@ struct PaymentRatesGraphWindow : BaseGraphWindow {
 
 		int i = 0;
 		const CargoSpec *cs;
-		FOR_ALL_SORTED_CARGOSPECS(cs) {
+		FOR_ALL_SORTED_STANDARD_CARGOSPECS(cs) {
 			if (HasBit(_legend_excluded_cargo, cs->Index())) SetBit(this->excluded_data, i);
 			i++;
 		}
@@ -855,7 +864,7 @@ struct PaymentRatesGraphWindow : BaseGraphWindow {
 
 	void UpdateLoweredWidgets()
 	{
-		for (int i = 0; i < _sorted_cargo_specs_size; i++) {
+		for (int i = 0; i < _sorted_standard_cargo_specs_size; i++) {
 			this->SetWidgetLoweredState(CPW_CARGO_FIRST + i, !HasBit(this->excluded_data, i));
 		}
 	}
@@ -904,12 +913,37 @@ struct PaymentRatesGraphWindow : BaseGraphWindow {
 
 	virtual void OnClick(Point pt, int widget, int click_count)
 	{
-		if (widget >= CPW_CARGO_FIRST) {
-			int i = widget - CPW_CARGO_FIRST;
-			ToggleBit(_legend_excluded_cargo, _sorted_cargo_specs[i]->Index());
-			this->ToggleWidgetLoweredState(widget);
-			this->UpdateExcludedData();
-			this->SetDirty();
+		switch (widget) {
+			case CPW_ENABLE_CARGOS:
+				/* Remove all cargos from the excluded lists. */
+				_legend_excluded_cargo = 0;
+				this->excluded_data = 0;
+				this->UpdateLoweredWidgets();
+				this->SetDirty();
+				break;
+
+			case CPW_DISABLE_CARGOS: {
+				/* Add all cargos to the excluded lists. */
+				int i = 0;
+				const CargoSpec *cs;
+				FOR_ALL_SORTED_STANDARD_CARGOSPECS(cs) {
+					SetBit(_legend_excluded_cargo, cs->Index());
+					SetBit(this->excluded_data, i);
+					i++;
+				}
+				this->UpdateLoweredWidgets();
+				this->SetDirty();
+			} break;
+
+			default:
+				if (widget >= CPW_CARGO_FIRST) {
+					int i = widget - CPW_CARGO_FIRST;
+					ToggleBit(_legend_excluded_cargo, _sorted_cargo_specs[i]->Index());
+					this->ToggleWidgetLoweredState(widget);
+					this->UpdateExcludedData();
+					this->SetDirty();
+				}
+				break;
 		}
 	}
 
@@ -918,13 +952,18 @@ struct PaymentRatesGraphWindow : BaseGraphWindow {
 		/* Override default OnTick */
 	}
 
+	virtual void OnInvalidateData(int data)
+	{
+		this->OnHundredthTick();
+	}
+
 	virtual void OnHundredthTick()
 	{
 		this->UpdateExcludedData();
 
 		int i = 0;
 		const CargoSpec *cs;
-		FOR_ALL_SORTED_CARGOSPECS(cs) {
+		FOR_ALL_SORTED_STANDARD_CARGOSPECS(cs) {
 			this->colours[i] = cs->legend_colour;
 			for (uint j = 0; j != 20; j++) {
 				this->cost[i][j] = GetTransportedGoodsIncome(10, 20, j * 4 + 4, cs->Index());
@@ -940,14 +979,14 @@ static NWidgetBase *MakeCargoButtons(int *biggest_index)
 {
 	NWidgetVertical *ver = new NWidgetVertical;
 
-	for (int i = 0; i < _sorted_cargo_specs_size; i++) {
+	for (int i = 0; i < _sorted_standard_cargo_specs_size; i++) {
 		NWidgetBackground *leaf = new NWidgetBackground(WWT_PANEL, COLOUR_ORANGE, CPW_CARGO_FIRST + i, NULL);
 		leaf->tool_tip = STR_GRAPH_CARGO_PAYMENT_TOGGLE_CARGO;
 		leaf->SetFill(1, 0);
 		leaf->SetLowered(true);
 		ver->Add(leaf);
 	}
-	*biggest_index = CPW_CARGO_FIRST + _sorted_cargo_specs_size - 1;
+	*biggest_index = CPW_CARGO_FIRST + _sorted_standard_cargo_specs_size - 1;
 	return ver;
 }
 
@@ -970,6 +1009,9 @@ static const NWidgetPart _nested_cargo_payment_rates_widgets[] = {
 				NWidget(WWT_EMPTY, COLOUR_GREY, CPW_GRAPH), SetMinimalSize(495, 0), SetFill(1, 1),
 				NWidget(NWID_VERTICAL),
 					NWidget(NWID_SPACER), SetMinimalSize(0, 24), SetFill(0, 0),
+						NWidget(WWT_PUSHTXTBTN, COLOUR_ORANGE, CPW_ENABLE_CARGOS), SetDataTip(STR_GRAPH_CARGO_ENABLE_ALL, STR_GRAPH_CARGO_TOOLTIP_ENABLE_ALL), SetFill(1, 0),
+						NWidget(WWT_PUSHTXTBTN, COLOUR_ORANGE, CPW_DISABLE_CARGOS), SetDataTip(STR_GRAPH_CARGO_DISABLE_ALL, STR_GRAPH_CARGO_TOOLTIP_DISABLE_ALL), SetFill(1, 0),
+						NWidget(NWID_SPACER), SetMinimalSize(0, 4), SetFill(0, 0),
 						NWidgetFunction(MakeCargoButtons),
 					NWidget(NWID_SPACER), SetMinimalSize(0, 24), SetFill(0, 1),
 				EndContainer(),
@@ -987,7 +1029,7 @@ static const NWidgetPart _nested_cargo_payment_rates_widgets[] = {
 static const WindowDesc _cargo_payment_rates_desc(
 	WDP_AUTO, 0, 0,
 	WC_PAYMENT_RATES, WC_NONE,
-	0,
+	WDF_UNCLICK_BUTTONS,
 	_nested_cargo_payment_rates_widgets, lengthof(_nested_cargo_payment_rates_widgets)
 );
 

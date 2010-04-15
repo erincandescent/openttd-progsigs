@@ -586,6 +586,10 @@ STR_GRAPH_COMPANY_VALUES_CAPTION                                :{WHITE}Hodnota 
 STR_GRAPH_CARGO_PAYMENT_RATES_CAPTION                           :{WHITE}Ceny prepravy
 STR_GRAPH_CARGO_PAYMENT_RATES_X_LABEL                           :{TINYFONT}{BLACK}Pocet dni transportu
 STR_GRAPH_CARGO_PAYMENT_RATES_TITLE                             :{TINYFONT}{BLACK}Platba za prepravu 10 jednotiek (alebo 10 000 litrov) nákladu cez 20 stvorcov
+STR_GRAPH_CARGO_ENABLE_ALL                                      :{TINYFONT}{BLACK}Povoliť všetky
+STR_GRAPH_CARGO_DISABLE_ALL                                     :{TINYFONT}{BLACK}Zakázať všetky
+STR_GRAPH_CARGO_TOOLTIP_ENABLE_ALL                              :{BLACK}Zobraziť všetky náklady v grafe cien nákladu
+STR_GRAPH_CARGO_TOOLTIP_DISABLE_ALL                             :{BLACK}Nezobraziť žiadne náklady v grafe cien nákladu
 STR_GRAPH_CARGO_PAYMENT_TOGGLE_CARGO                            :{BLACK}Graf pre typ nakladu zap./vyp.
 STR_GRAPH_CARGO_PAYMENT_CARGO                                   :{TINYFONT}{BLACK}{STRING}
 
@@ -699,8 +703,8 @@ STR_HIGHSCORE_PERFORMANCE_TITLE_MOGUL                           :Mogul
 STR_HIGHSCORE_PERFORMANCE_TITLE_TYCOON_OF_THE_CENTURY           :Tycoon
 STR_HIGHSCORE_NAME                                              :{BIGFONT}{PRESIDENTNAME}, {COMPANY}
 STR_HIGHSCORE_STATS                                             :{BIGFONT}'{STRING}'   ({COMMA})
-STR_HIGHSCORE_COMPANY_ACHIEVES_STATUS                           :{BIGFONT}{BLACK}{COMPANY} ziskal oznacenie '{STRING}' !
-STR_HIGHSCORE_PRESIDENT_OF_COMPANY_ACHIEVES_STATUS              :{BIGFONT}{WHITE}{PRESIDENTNAME} z {COMPANY} ziskal oznacenie '{STRING}' !
+STR_HIGHSCORE_COMPANY_ACHIEVES_STATUS                           :{BIGFONT}{BLACK}{COMPANY} získal označenie '{STRING}'!
+STR_HIGHSCORE_PRESIDENT_OF_COMPANY_ACHIEVES_STATUS              :{BIGFONT}{WHITE}{PRESIDENTNAME} z {COMPANY} získal označenie '{STRING}'!
 
 # Smallmap window
 STR_SMALLMAP_CAPTION                                            :{WHITE}Mapa - {STRING}
@@ -1162,7 +1166,7 @@ STR_CONFIG_SETTING_DISTANT_JOIN_STATIONS                        :{LTBLUE}Povoli�
 STR_CONFIG_SETTING_IMPROVEDLOAD                                 :{LTBLUE}Použiť vylepšený algoritmus nakladania: {ORANGE}{STRING}
 STR_CONFIG_SETTING_GRADUAL_LOADING                              :{LTBLUE}Postupné nakladanie vozidiel: {ORANGE}{STRING}
 STR_CONFIG_SETTING_INFLATION                                    :{LTBLUE}Inflácia: {ORANGE}{STRING}
-STR_CONFIG_SETTING_SELECTGOODS                                  :{LTBLUE}Vykladat náklad len v stanici kde je dopyt: {ORANGE}{STRING}
+STR_CONFIG_SETTING_SELECTGOODS                                  :{LTBLUE}Vykladať náklad len v stanici kde je dopyt: {ORANGE}{STRING}
 STR_CONFIG_SETTING_LONGBRIDGES                                  :{LTBLUE}Umožniť stavbu dlhých mostov: {ORANGE}{STRING}
 STR_CONFIG_SETTING_GOTODEPOT                                    :{LTBLUE}Umožnit zaradenie depa do zoznamu príkazov: {ORANGE}{STRING}
 STR_CONFIG_SETTING_RAW_INDUSTRY_CONSTRUCTION_METHOD             :{LTBLUE}Spôsob výstavby priemyslu produkujúceho suroviny: {ORANGE}{STRING}
@@ -1192,7 +1196,7 @@ STR_CONFIG_SETTING_PLANE_CRASHES_REDUCED                        :obmedzené
 STR_CONFIG_SETTING_PLANE_CRASHES_NORMAL                         :normálny
 STR_CONFIG_SETTING_STOP_ON_TOWN_ROAD                            :{LTBLUE}Povoliť prejazdné zastávky na mestských cestách: {ORANGE}{STRING}
 STR_CONFIG_SETTING_STOP_ON_COMPETITOR_ROAD                      :{LTBLUE}Povoliť prechádzanie cez stop značky na cestách vlastnené konkurenciou: {ORANGE}{STRING}
-STR_CONFIG_SETTING_ADJACENT_STATIONS                            :{LTBLUE}Povolit stavbu oddelených staníc: {ORANGE}{STRING}
+STR_CONFIG_SETTING_ADJACENT_STATIONS                            :{LTBLUE}Povoliť stavbu oddelených staníc: {ORANGE}{STRING}
 STR_CONFIG_SETTING_DYNAMIC_ENGINES                              :{LTBLUE}Povoliť viaceré NewGRF sety s rušňami: {ORANGE}{STRING}
 STR_CONFIG_SETTING_DYNAMIC_ENGINES_EXISTING_VEHICLES            :{WHITE}Zmena tohto nastavenia nie je možná, pokiaľ sa tu nachádzajú vozidlá.
 
@@ -1636,7 +1640,7 @@ STR_NETWORK_START_SERVER_CAPTION                                :{WHITE}Spustiť
 STR_NETWORK_START_SERVER_NEW_GAME_NAME                          :{BLACK}Nazov hry:
 STR_NETWORK_START_SERVER_NEW_GAME_NAME_TOOLTIP                  :{BLACK}Nazov hry, ktory uvidia ostatni v zozname sietovych hier
 STR_NETWORK_START_SERVER_SET_PASSWORD                           :{BLACK}Nastavit heslo
-STR_NETWORK_START_SERVER_PASSWORD_TOOLTIP                       :{BLACK}Ochran hru heslom, ak nechcec aby sa pripajali ostatni ludia
+STR_NETWORK_START_SERVER_PASSWORD_TOOLTIP                       :{BLACK}Zabezpeč hru heslom, ak nechceš povoliť verejný prístup
 STR_NETWORK_START_SERVER_SELECT_MAP                             :{BLACK}Vyber mapu:
 STR_NETWORK_START_SERVER_SELECT_MAP_TOOLTIP                     :{BLACK}Ktoru mapu chces hrat?
 STR_NETWORK_START_SERVER_SERVER_RANDOM_GAME                     :Vygenerovať náhodnú novú hru
@@ -1779,7 +1783,7 @@ STR_COMPANY_PASSWORD_MAKE_DEFAULT_TOOLTIP                       :{BLACK}Použit 
 STR_COMPANY_VIEW_JOIN                                           :{BLACK}Pridať sa
 STR_COMPANY_VIEW_JOIN_TOOLTIP                                   :{BLACK}Pridať sa a hrať za túto spoločnosť
 STR_COMPANY_VIEW_PASSWORD                                       :{BLACK}Heslo
-STR_COMPANY_VIEW_PASSWORD_TOOLTIP                               :{BLACK}Heslo-ochrana vasej spolocnosti proti neautorizovanemu pripojeniu hracov
+STR_COMPANY_VIEW_PASSWORD_TOOLTIP                               :{BLACK}Ochráň svoju spoločnosť heslom, aby sa nepripájali neautorizovaný hráči.
 STR_COMPANY_VIEW_SET_PASSWORD                                   :{BLACK}Nastavte heslo spolocnosti
 
 # Network chat
@@ -1956,9 +1960,9 @@ STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_TRACK                   :{BLACK}Postavit
 STR_RAIL_TOOLBAR_TOOLTIP_BUILD_AUTORAIL                         :{BLACK}Automaticka stavba zeleznicnych kolaji
 STR_RAIL_TOOLBAR_TOOLTIP_BUILD_TRAIN_DEPOT_FOR_BUILDING         :{BLACK}Postavit zeleznicne depo (pre vyrobu a opravu vlakov)
 STR_RAIL_TOOLBAR_TOOLTIP_CONVERT_RAIL_TO_WAYPOINT               :{BLACK}Konvertovat zeleznicu na smerove body
-STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_STATION                 :{BLACK}Postavit zeleznicnu stanicu
+STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_STATION                 :{BLACK}Postaviť železničnú stanicu
 STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_SIGNALS                 :{BLACK}Postavit zeleznicne semafory
-STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_BRIDGE                  :{BLACK}Postavit zeleznicny most
+STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_BRIDGE                  :{BLACK}Postaviť železničný most
 STR_RAIL_TOOLBAR_TOOLTIP_BUILD_RAILROAD_TUNNEL                  :{BLACK}Postavit zeleznicny tunel
 STR_RAIL_TOOLBAR_TOOLTIP_TOGGLE_BUILD_REMOVE_FOR                :{BLACK}Prepnut stavbu/odstranenie zeleznicnych kolaji a semaforov
 STR_RAIL_TOOLBAR_TOOLTIP_CONVERT_RAIL                           :{BLACK}Konvertovat/vylepsit typ zeleznice
@@ -2008,7 +2012,7 @@ STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_DECREASE_TOOLTIP          :{BLACK}Znižit 
 STR_BUILD_SIGNAL_DRAG_SIGNALS_DENSITY_INCREASE_TOOLTIP          :{BLACK}Zvýšit hustotu signálov
 
 # Bridge selection window
-STR_SELECT_RAIL_BRIDGE_CAPTION                                  :{WHITE}Vyber zeleznicny most
+STR_SELECT_RAIL_BRIDGE_CAPTION                                  :{WHITE}Vyber železničný most
 STR_SELECT_ROAD_BRIDGE_CAPTION                                  :{WHITE}Vyber cestny most
 STR_SELECT_BRIDGE_SELECTION_TOOLTIP                             :{BLACK}Výber mostu - pre postavanie zvoľ typ mostu
 STR_SELECT_BRIDGE_INFO                                          :{GOLD}{STRING},{} {VELOCITY} {WHITE}{CURRENCY}
@@ -2031,7 +2035,7 @@ STR_ROAD_TOOLBAR_TOOLTIP_BUILD_AUTOROAD                         :{BLACK}Stavat c
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_AUTOTRAM                         :{BLACK}Stavať časti električkovej trate použitím automatického módu. Ctrl prepína stavanie/odstránenie električkovej trate
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_ROAD_VEHICLE_DEPOT               :{BLACK}Postaviť depo pre cestné vozidlá (na výrobu a opravy vozidiel)
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_TRAM_VEHICLE_DEPOT               :{BLACK}Postaviť električkové depo
-STR_ROAD_TOOLBAR_TOOLTIP_BUILD_BUS_STATION                      :{BLACK}Postavit autobusovu zastavku
+STR_ROAD_TOOLBAR_TOOLTIP_BUILD_BUS_STATION                      :{BLACK}Postaviť autobusovú zastávku
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_PASSENGER_TRAM_STATION           :{BLACK}Postavit osobnú elektrickovú stanicu
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_TRUCK_LOADING_BAY                :{BLACK}Postavit vykladku
 STR_ROAD_TOOLBAR_TOOLTIP_BUILD_CARGO_TRAM_STATION               :{BLACK}Postavit nákladnú elektrickovú stanicu
@@ -2652,7 +2656,7 @@ STR_COMPANY_VIEW_BUILD_HQ_TOOLTIP                               :{BLACK}Postavi�
 STR_COMPANY_VIEW_VIEW_HQ_BUTTON                                 :{BLACK}Pozriet sidlo
 STR_COMPANY_VIEW_VIEW_HQ_TOOLTIP                                :{BLACK}Pozrieť sídlo firmy
 STR_COMPANY_VIEW_RELOCATE_HQ                                    :{BLACK}Premiestnit sidlo
-STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Sidlo spolocnosti je mozne premiestnit za 1% hodnoty spolocnosti
+STR_COMPANY_VIEW_RELOCATE_COMPANY_HEADQUARTERS                  :{BLACK}Sídlo spoločnosti je možné premiestniť za 1% hodnoty spoločnosti
 
 STR_COMPANY_VIEW_NEW_FACE_BUTTON                                :{BLACK}Nová tvár
 STR_COMPANY_VIEW_NEW_FACE_TOOLTIP                               :{BLACK}Vybrat novu tvar prezidenta
@@ -3291,6 +3295,8 @@ STR_AI_DEBUG_SETTINGS                                           :{BLACK}Nastaven
 STR_AI_DEBUG_SETTINGS_TOOLTIP                                   :{BLACK}Zmeniť nastavenia pre AI
 STR_AI_DEBUG_RELOAD                                             :{BLACK}Znovu načítať AI
 STR_AI_DEBUG_RELOAD_TOOLTIP                                     :{BLACK}Zrušiť AI, znovu načítať skript, a reštartovať AI
+STR_AI_DEBUG_CONTINUE                                           :{BLACK}Pokračovať
+STR_AI_DEBUG_CONTINUE_TOOLTIP                                   :{BLACK}Odpauzovať a povoliť AI
 
 STR_ERROR_NO_AI                                                 :{WHITE}OpenTTD je vytvorené bez podpory AI...
 STR_ERROR_NO_AI_SUB                                             :{WHITE}... žiadne AI nieje dostupné!
@@ -3379,7 +3385,7 @@ STR_ERROR_BMPMAP                                                :{WHITE}Nie je m
 STR_ERROR_BMPMAP_IMAGE_TYPE                                     :{WHITE}... nie je mozne zkonvertovat format obrazku.
 
 STR_WARNING_HEIGHTMAP_SCALE_CAPTION                             :{WHITE}Upozornenie na stupnicu
-STR_WARNING_HEIGHTMAP_SCALE_MESSAGE                             :{YELLOW}Prilis velka zmena velkosti zdrojovej mapy sa neodporuca. Pokracovat s generovanim?
+STR_WARNING_HEIGHTMAP_SCALE_MESSAGE                             :{YELLOW}Príliš veľká zmena veľkosti zdrojovej mapy sa neodporúča. Pokračovať s generovaním?
 
 # Soundset messages
 STR_WARNING_FALLBACK_SOUNDSET                                   :{WHITE}Bola nájdená len núdzová sada zvukov. Pre plnú podporu zvukových efektov je potrebné nainštalovať zvukovú sadu cez online obsah.
@@ -3594,6 +3600,7 @@ STR_ERROR_BRIDGEHEADS_NOT_SAME_HEIGHT                           :{WHITE}Konce mo
 STR_ERROR_BRIDGE_TOO_LOW_FOR_TERRAIN                            :{WHITE}Most je príliš nízky pre tento terén
 STR_ERROR_START_AND_END_MUST_BE_IN                              :{WHITE}Začiatok a koniec musí byť v rovine
 STR_ERROR_ENDS_OF_BRIDGE_MUST_BOTH                              :{WHITE}... konce mostu musia byť na pevnine
+STR_ERROR_BRIDGE_TOO_LONG                                       :{WHITE}... most je príliš dlhý
 
 # Tunnel related errors
 STR_ERROR_CAN_T_BUILD_TUNNEL_HERE                               :{WHITE}Tu sa nedá postaviť tunel...

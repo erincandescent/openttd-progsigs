@@ -146,7 +146,7 @@ STR_ABBREV_COPPER_ORE                                           :{TINYFONT}MC
 STR_ABBREV_MAIZE                                                :{TINYFONT}MZ
 STR_ABBREV_FRUIT                                                :{TINYFONT}FT
 STR_ABBREV_DIAMONDS                                             :{TINYFONT}DM
-STR_ABBREV_FOOD                                                 :{TINYFONT}CM
+STR_ABBREV_FOOD                                                 :{TINYFONT}AL
 STR_ABBREV_PAPER                                                :{TINYFONT}PP
 STR_ABBREV_GOLD                                                 :{TINYFONT}OR
 STR_ABBREV_WATER                                                :{TINYFONT}AG
@@ -277,7 +277,7 @@ STR_SORT_BY_LENGTH                                              :Longitud
 STR_SORT_BY_LIFE_TIME                                           :Tiempo de vida remanente
 STR_SORT_BY_TIMETABLE_DELAY                                     :Retraso en horarios
 STR_SORT_BY_FACILITY                                            :Tipo de estación
-STR_SORT_BY_WAITING                                             :Esperando valor de la carga
+STR_SORT_BY_WAITING                                             :Carga en espera
 STR_SORT_BY_RATING_MAX                                          :Clasificación de carga más alta
 STR_SORT_BY_RATING_MIN                                          :Clasificación de carga más baja
 STR_SORT_BY_ENGINE_ID                                           :ID Motor (ordenación clásica)
@@ -523,7 +523,11 @@ STR_GRAPH_COMPANY_VALUES_CAPTION                                :{WHITE}Valores 
 STR_GRAPH_CARGO_PAYMENT_RATES_CAPTION                           :{WHITE}Tasas de pago por carga
 STR_GRAPH_CARGO_PAYMENT_RATES_X_LABEL                           :{TINYFONT}{BLACK}Días en tránsito
 STR_GRAPH_CARGO_PAYMENT_RATES_TITLE                             :{TINYFONT}{BLACK}Pago por entregar 10 unidades (o 1,000 litros) de mercancía a una distancia de 20 cuadros
-STR_GRAPH_CARGO_PAYMENT_TOGGLE_CARGO                            :{BLACK}Intercambiar gráfico para tipo de carga
+STR_GRAPH_CARGO_ENABLE_ALL                                      :{TINYFONT}{BLACK}Activar todos
+STR_GRAPH_CARGO_DISABLE_ALL                                     :{TINYFONT}{BLACK}Desactivar todos
+STR_GRAPH_CARGO_TOOLTIP_ENABLE_ALL                              :{BLACK}Mostrar todos los tipos de carga en el gráfico de tarifas de pagos por carga
+STR_GRAPH_CARGO_TOOLTIP_DISABLE_ALL                             :{BLACK}Ocultar todos los tipos de carga en el gráfico de tarifas de pagos por carga
+STR_GRAPH_CARGO_PAYMENT_TOGGLE_CARGO                            :{BLACK}Mostrar / ocultar gráfico de este tipo de carga
 STR_GRAPH_CARGO_PAYMENT_CARGO                                   :{TINYFONT}{BLACK}{STRING}
 
 STR_GRAPH_PERFORMANCE_DETAIL_TOOLTIP                            :{BLACK}Mostrar detalles de rendimiento
@@ -3225,6 +3229,8 @@ STR_AI_DEBUG_SETTINGS                                           :{BLACK}Configur
 STR_AI_DEBUG_SETTINGS_TOOLTIP                                   :{BLACK}Cambiar la configuración de la IA
 STR_AI_DEBUG_RELOAD                                             :{BLACK}Recarga la IA
 STR_AI_DEBUG_RELOAD_TOOLTIP                                     :{BLACK}Elimina la IA, recarga el código y reinicia la IA
+STR_AI_DEBUG_CONTINUE                                           :{BLACK}Continuar
+STR_AI_DEBUG_CONTINUE_TOOLTIP                                   :{BLACK}Despausar y hacer que la IA continúe
 
 STR_ERROR_NO_AI                                                 :{WHITE}OpenTTD está compilado sin soporte para IA...
 STR_ERROR_NO_AI_SUB                                             :{WHITE}... no hay IAs disponibles!
@@ -3528,6 +3534,7 @@ STR_ERROR_BRIDGEHEADS_NOT_SAME_HEIGHT                           :{WHITE}Las cabe
 STR_ERROR_BRIDGE_TOO_LOW_FOR_TERRAIN                            :{WHITE}El puente es demasiado bajo para el terreno
 STR_ERROR_START_AND_END_MUST_BE_IN                              :{WHITE}Comienzo y final deben estar en línea
 STR_ERROR_ENDS_OF_BRIDGE_MUST_BOTH                              :{WHITE}... los dos extremos de un puente han de estar sobre tierra
+STR_ERROR_BRIDGE_TOO_LONG                                       :{WHITE}... puente demasiado largo
 
 # Tunnel related errors
 STR_ERROR_CAN_T_BUILD_TUNNEL_HERE                               :{WHITE}No se puede construir túnel aquí...

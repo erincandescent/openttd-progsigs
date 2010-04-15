@@ -564,6 +564,10 @@ STR_GRAPH_COMPANY_VALUES_CAPTION                                :{WHITE}Vrednost
 STR_GRAPH_CARGO_PAYMENT_RATES_CAPTION                           :{WHITE}Cene tovora
 STR_GRAPH_CARGO_PAYMENT_RATES_X_LABEL                           :{TINYFONT}{BLACK}Dni v tranzitu
 STR_GRAPH_CARGO_PAYMENT_RATES_TITLE                             :{TINYFONT}{BLACK}Plačilo za dostavo 10 enot (ali 10.000 litrov) tovora za razdaljo 20 kvadratkov
+STR_GRAPH_CARGO_ENABLE_ALL                                      :{TINYFONT}{BLACK}Omogoči vse
+STR_GRAPH_CARGO_DISABLE_ALL                                     :{TINYFONT}{BLACK}Onemogoči vse
+STR_GRAPH_CARGO_TOOLTIP_ENABLE_ALL                              :{BLACK}Prikaži ves tovor na grafu plačil
+STR_GRAPH_CARGO_TOOLTIP_DISABLE_ALL                             :{BLACK}Ne prikaži tovora na grafu plačil
 STR_GRAPH_CARGO_PAYMENT_TOGGLE_CARGO                            :{BLACK}Prikaži graf za tip tovora vključen/izključen
 STR_GRAPH_CARGO_PAYMENT_CARGO                                   :{TINYFONT}{BLACK}{STRING}
 
@@ -3266,6 +3270,14 @@ STR_AI_DEBUG_SETTINGS                                           :{BLACK}Nastavit
 STR_AI_DEBUG_SETTINGS_TOOLTIP                                   :{BLACK}Spremeni nastavitve UI
 STR_AI_DEBUG_RELOAD                                             :{BLACK}Ponovno naloži UI
 STR_AI_DEBUG_RELOAD_TOOLTIP                                     :{BLACK}Uniči UI, ponovno naloži skripto in ponovno zaženi UI
+STR_AI_DEBUG_BREAK_STR_ON_OFF_TOOLTIP                           :{BLACK}Vključi/izključi prelom, ko se sporočilo UI ujema z besedilom preloma
+STR_AI_DEBUG_BREAK_ON_LABEL                                     :{BLACK}Prelomi na:
+STR_AI_DEBUG_BREAK_STR_OSKTITLE                                 :{BLACK}Prelomi na
+STR_AI_DEBUG_BREAK_STR_TOOLTIP                                  :{BLACK}Če se sporočilo v dnevniku UI ujema z besedilom, se igra prekine.
+STR_AI_DEBUG_MATCH_CASE                                         :{BLACK}Ujemanje začetnic
+STR_AI_DEBUG_MATCH_CASE_TOOLTIP                                 :{BLACK}Preklopi način ujemanja pri primerjanju dnevnika UI z napako
+STR_AI_DEBUG_CONTINUE                                           :{BLACK}Nadaljuj
+STR_AI_DEBUG_CONTINUE_TOOLTIP                                   :{BLACK}Nadaljuj izvajanje UI
 
 STR_ERROR_NO_AI                                                 :{WHITE}OpenTTD je zgrajen brez podpore za UI...
 STR_ERROR_NO_AI_SUB                                             :{WHITE}... ni nobene UI na voljo!
@@ -3569,6 +3581,7 @@ STR_ERROR_BRIDGEHEADS_NOT_SAME_HEIGHT                           :{WHITE}Priklju�
 STR_ERROR_BRIDGE_TOO_LOW_FOR_TERRAIN                            :{WHITE}Most je prenizek za teren
 STR_ERROR_START_AND_END_MUST_BE_IN                              :{WHITE}Začetek in konec morata biti na isti višini
 STR_ERROR_ENDS_OF_BRIDGE_MUST_BOTH                              :{WHITE}... oba priključka mostu morata biti na kopnem
+STR_ERROR_BRIDGE_TOO_LONG                                       :{WHITE}... predolg most
 
 # Tunnel related errors
 STR_ERROR_CAN_T_BUILD_TUNNEL_HERE                               :{WHITE}Tukaj ni mogoče zgraditi predora...

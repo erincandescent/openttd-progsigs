@@ -604,6 +604,7 @@ void ClientNetworkContentSocketHandler::OnReceiveData(const char *data, size_t l
 
 		p = strrchr(str, '/');
 		check_not_null(p);
+		p++; // Start after the '/'
 
 		char tmp[MAX_PATH];
 		if (strecpy(tmp, p, lastof(tmp)) == lastof(tmp)) {
@@ -824,7 +825,7 @@ void ClientNetworkContentSocketHandler::UnselectAll()
 	}
 }
 
-/** Toggle the state of a content info and check it's dependencies */
+/** Toggle the state of a content info and check its dependencies */
 void ClientNetworkContentSocketHandler::ToggleSelectedState(const ContentInfo *ci)
 {
 	switch (ci->state) {
