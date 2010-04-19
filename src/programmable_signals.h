@@ -11,7 +11,6 @@
 
 #ifndef PROGRAMMABLE_SIGNALS_H
 #define PROGRAMMABLE_SIGNALS_H
-#include "strings.h"
 #include "rail_map.h"
 #include "core/smallvec_type.hpp"
 #include <map>
