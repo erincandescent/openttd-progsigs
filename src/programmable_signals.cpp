@@ -128,7 +128,14 @@ SignalStateCondition::SignalStateCondition(SignalReference this_sig,
 
 bool SignalStateCondition::IsSignalValid()
 {
-	return IsValidTile(this->sig_tile) && HasSignalOnTrackdir(this->sig_tile, this->sig_track);
+	if (IsValidTile(this->sig_tile)) {
+		if (HasSignalOnTrackdir(this->sig_tile, this->sig_track)) {
+			return true;
+		} else {
+			Invalidate();
+		}
+	}
+	return false;
 }
 
 void SignalStateCondition::Invalidate()

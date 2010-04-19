@@ -722,7 +722,11 @@ void RemoveSignalDependency(SignalReference on, SignalReference dep)
 {
 	SignalDependencyList &dependencies = _signal_dependencies[on];
 	SignalReference *ob = dependencies.Find(dep);
-	assert(ob != dependencies.End());
+	
+	// Destroying both signals in same command
+	if(ob == dependencies.End())
+		return;
+	
 	dependencies.Erase(ob);
 	if (dependencies.Length() == 0)
 		_signal_dependencies.erase(on);

@@ -327,6 +327,10 @@ public:
 		SignalIf *sif = static_cast <SignalIf*>(si);
 		if (sif->condition->ConditionCode() != PSC_SIGNAL_STATE) return;
 		
+		if (!IsPlainRailTile(tile)) {
+			return;
+		}
+		
 		TrackBits trackbits = TrackStatusToTrackBits(GetTileTrackStatus(tile, TRANSPORT_RAIL, 0));
 		if (trackbits & TRACK_BIT_VERT) { // N-S direction
 			trackbits = (_tile_fract_coords.x <= _tile_fract_coords.y) ? TRACK_BIT_RIGHT : TRACK_BIT_LEFT;
@@ -336,6 +340,9 @@ public:
 			trackbits = (_tile_fract_coords.x + _tile_fract_coords.y <= 15) ? TRACK_BIT_UPPER : TRACK_BIT_LOWER;
 		}
 		Track track = FindFirstTrack(trackbits);
+		if(track == INVALID_TRACK) {
+			return;
+		}
 		
 		Trackdir td = TrackToTrackdir(track);
 		Trackdir tdr = ReverseTrackdir(td);
@@ -348,7 +355,11 @@ public:
 		} 
 		
 		if (!HasSignalOnTrackdir(tile, td)) {
-			ShowErrorMessage(STR_ERROR_INVALID_SIGNAL, STR_ERROR_NOT_A_SIGNAL, WL_INFO);
+			return;
+		}
+		
+		if (!IsPresignalExit(tile, track)) {
+			ShowErrorMessage(STR_ERROR_INVALID_SIGNAL, STR_ERROR_NOT_AN_EXIT_SIGNAL, WL_INFO);
 			return;
 		}
 		
