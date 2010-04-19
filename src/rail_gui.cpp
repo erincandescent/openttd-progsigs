@@ -279,7 +279,7 @@ void CcBuildRailTunnel(const CommandCost &result, TileIndex tile, uint32 p1, uin
 
 static void PlaceRail_Tunnel(TileIndex tile)
 {
-	DoCommandP(tile, _cur_railtype, 0, CMD_BUILD_TUNNEL | CMD_MSG(STR_ERROR_CAN_T_BUILD_TUNNEL_HERE), CcBuildRailTunnel);
+	DoCommandP(tile, _cur_railtype | (TRANSPORT_RAIL << 8), 0, CMD_BUILD_TUNNEL | CMD_MSG(STR_ERROR_CAN_T_BUILD_TUNNEL_HERE), CcBuildRailTunnel);
 }
 
 static void PlaceRail_ConvertRail(TileIndex tile)
@@ -823,7 +823,7 @@ struct BuildRailToolbarWindow : Window {
 
 	virtual void OnPlacePresize(Point pt, TileIndex tile)
 	{
-		DoCommand(tile, _cur_railtype, 0, DC_AUTO, CMD_BUILD_TUNNEL);
+		DoCommand(tile, _cur_railtype | (TRANSPORT_RAIL << 8), 0, DC_AUTO, CMD_BUILD_TUNNEL);
 		VpSetPresizeRange(tile, _build_tunnel_endtile == 0 ? tile : _build_tunnel_endtile);
 	}
 
@@ -1588,7 +1588,7 @@ public:
 			case BSW_ELECTRIC_PBS_OWAY:
 				this->RaiseWidget((_cur_signal_variant == SIG_ELECTRIC ? BSW_ELECTRIC_NORM : BSW_SEMAPHORE_NORM) + _cur_signal_button);
 
-				_cur_signal_button = (uint)((widget - BSW_SEMAPHORE_NORM) % (SIGTYPE_LAST + 1));
+				_cur_signal_button = (uint)((widget - BSW_SEMAPHORE_NORM) % (SIGTYPE_END));
 				_cur_signal_type = TypeForClick(_cur_signal_button);
 				_cur_signal_variant = widget >= BSW_ELECTRIC_NORM ? SIG_ELECTRIC : SIG_SEMAPHORE;
 				break;

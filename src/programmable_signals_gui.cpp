@@ -246,8 +246,8 @@ public:
 					return;
 				
 				uint32 p1 = 0;
-				SB(p1, 0, 4, this->track);
-				SB(p1, 5, 16, ins->Id());
+				SB(p1, 0, 3, this->track);
+				SB(p1, 3, 16, ins->Id());
 				
 				DoCommandP(this->tile, p1, 0, CMD_REMOVE_SIGNAL_INSTRUCTION | CMD_MSG(STR_ERROR_CAN_T_MODIFY_INSTRUCTION));
 			} break;
@@ -353,8 +353,8 @@ public:
 		}
 		
 		uint32 p1 = 0, p2 = 0;
-		SB(p1, 0, 4, this->track);
-		SB(p1, 5, 16, sif->Id());
+		SB(p1, 0, 3, this->track);
+		SB(p1, 3, 16, si->Id());
 		
 		SB(p2, 0, 1, 1);
 		SB(p2, 1, 5,  td);
@@ -376,8 +376,8 @@ public:
 			uint value = atoi(str);
 			
 			uint32 p1 = 0, p2 = 0;
-			SB(p1, 0, 4, this->track);
-			SB(p1, 5, 16, si->Id());
+			SB(p1, 0, 3, this->track);
+			SB(p1, 3, 16, si->Id());
 			
 			SB(p2, 0, 1, 1);
 			SB(p2, 1, 2, SCF_VALUE);
@@ -395,9 +395,9 @@ public:
 		switch (widget) {
 			case PROGRAM_WIDGET_INSERT: {
 				uint32 p1 = 0;
-				SB(p1, 0, 4, this->track);
-				SB(p1, 5, 16, ins->Id());
-				SB(p1, 21, 8, OpcodeForIndex(index));
+				SB(p1, 0, 3, this->track);
+				SB(p1, 3, 16, ins->Id());
+				SB(p1, 19, 8, OpcodeForIndex(index));
 				
 				DoCommandP(this->tile, p1, 0, CMD_INSERT_SIGNAL_INSTRUCTION | CMD_MSG(STR_ERROR_CAN_T_INSERT_INSTRUCTION));
 				break;
@@ -405,8 +405,8 @@ public:
 			
 			case PROGRAM_WIDGET_SET_STATE: {
 				uint32 p1 = 0;
-				SB(p1, 0, 4, this->track);
-				SB(p1, 5, 16, ins->Id());
+				SB(p1, 0, 3, this->track);
+				SB(p1, 3, 16, ins->Id());
 				
 				DoCommandP(this->tile, p1, index, CMD_MODIFY_SIGNAL_INSTRUCTION | CMD_MSG(STR_ERROR_CAN_T_MODIFY_INSTRUCTION));
 				break;
@@ -414,8 +414,8 @@ public:
 				
 			case PROGRAM_WIDGET_COND_VARIABLE: {
 				uint32 p1 = 0, p2 = 0;
-				SB(p1, 0, 4, this->track);
-				SB(p1, 5, 16, ins->Id());
+				SB(p1, 0, 3, this->track);
+				SB(p1, 3, 16, ins->Id());
 				
 				SB(p2, 0, 1, 0);
 				SB(p2, 1, 8, index);
@@ -426,8 +426,8 @@ public:
 			
 			case PROGRAM_WIDGET_COND_COMPARATOR: {
 				uint32 p1 = 0, p2 = 0;
-				SB(p1, 0, 4, this->track);
-				SB(p1, 5, 16, ins->Id());
+				SB(p1, 0, 3, this->track);
+				SB(p1, 3, 16, ins->Id());
 				
 				SB(p2, 0, 1, 1);
 				SB(p2, 1, 2, SCF_COMPARATOR);

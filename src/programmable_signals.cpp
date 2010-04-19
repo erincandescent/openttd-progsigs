@@ -16,6 +16,7 @@
 #include "table/strings.h"
 #include "window_func.h"
 #include "company_func.h"
+#include "cmd_helper.h"
 #include <assert.h>
 
 ProgramList _signal_programs;
@@ -109,7 +110,7 @@ SignalVariableCondition::SignalVariableCondition(SignalConditionCode code)
 		case SGC_LESS_THAN_EQUALS:  return var_val <= this->value;
 		case SGC_MORE_THAN:         return var_val >  this->value;
 		case SGC_MORE_THAN_EQUALS:  return var_val >= this->value;
-		case SGC_IS_TRUE:           return var_val;
+		case SGC_IS_TRUE:           return var_val != 0;
 		case SGC_IS_FALSE:          return !var_val;
 		default: NOT_REACHED();
 	}
@@ -132,8 +133,9 @@ bool SignalStateCondition::IsSignalValid()
 
 void SignalStateCondition::Invalidate()
 {
-    this->sig_tile = INVALID_TILE;
+	this->sig_tile = INVALID_TILE;
 }
+
 
 void SignalStateCondition::SetSignal(TileIndex tile, Trackdir track)
 {
@@ -415,11 +417,11 @@ void RemoveProgramDependencies(SignalReference by, SignalReference on)
 				SignalStateCondition* c = static_cast<SignalStateCondition*>(ifi->condition);
 				if(c->sig_tile == by.tile && TrackdirToTrack(c->sig_track) == by.track)
 					c->Invalidate();
+				}
 			}
 		}
-	}
-
-	AddTrackToSignalBuffer(by.tile, by.track, GetTileOwner(by.tile));
+		
+		AddTrackToSignalBuffer(by.tile, by.track, GetTileOwner(by.tile));
 	UpdateSignalsInBuffer();
 }
 
@@ -439,10 +441,10 @@ void SignalProgram::DebugPrintProgram()
  *
  * @param tile The Tile on which to perform the operation
  * @param p1 Flags and information
- *   - Bits 0-4    Track on which signal sits
- *   - Bits 5-20   ID of instruction to insert before
- *   - Bits 21-28  Which opcode to create
- *   - Bits 29-31  Reserved
+ *   - Bits 0-2    Which track the signal sits on
+ *   - Bits 3-18   ID of instruction to insert before
+ *   - Bits 19-26  Which opcode to create
+ *   - Bits 27-31  Reserved
  * @param p2 Depends upon instruction
  *   - PSO_SET_SIGNAL:
  *       - Colour to set the signal to
@@ -450,9 +452,13 @@ void SignalProgram::DebugPrintProgram()
  */
 CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
 {
-	Track track         = (Track) GB(p1, 0, 4);
-	uint instruction_id = GB(p1, 5, 16);
-	SignalOpcode op     = (SignalOpcode) GB(p1, 21, 8);
+	Track track         = Extract<Track,        0,   3>(p1);
+	uint instruction_id = GB(p1, 3, 16);
+	SignalOpcode op     = Extract<SignalOpcode, 19,  8>(p1);
+	
+	if (!IsValidTrack(track) || !IsPlainRailTile(tile) || !HasTrack(tile, track)) {
+		return CMD_ERROR;
+	}
 	
 	if (!IsTileOwner(tile, _current_company)) 
 		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
@@ -463,7 +469,7 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	if (instruction_id > prog->instructions.Length())
 		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
-	bool exec = (flags & DC_EXEC);
+	bool exec = (flags & DC_EXEC) != 0;
 	
 	SignalInstruction *insert_before = prog->instructions[instruction_id];
 	switch (op) {
@@ -503,9 +509,8 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
  *
  * @param tile The Tile on which to perform the operation
  * @param p1 Flags and information
- *   - Bit  0-4    Which track this signal sits on
- *   - Bits 5-20   Instruction to modify
- *   - Bits 17-31  Reserved
+ *   - Bits 0-2    Which track the signal sits on
+ *   - Bits 3-18   ID of instruction to insert before
  * @param p2 Depends upon instruction
  *   - PSO_SET_SIGNAL:
  *       - Colour to set the signal to
@@ -522,8 +527,12 @@ CommandCost CmdInsertSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
  */
 CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
 {
-	Track track         = (Track) GB(p1, 0, 4);
-	uint instruction_id = GB(p1, 5, 16);
+	Track track         = Extract<Track, 0, 3 >(p1);
+	uint instruction_id = GB(p1, 3, 16);
+	
+	if (!IsValidTrack(track) || !IsPlainRailTile(tile) || !HasTrack(tile, track)) {
+		return CMD_ERROR;
+	}
 	
 	if (!IsTileOwner(tile, _current_company)) 
 		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
@@ -535,7 +544,7 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	if (instruction_id > prog->instructions.Length())
 		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
-	bool exec = (flags & DC_EXEC);
+	bool exec = (flags & DC_EXEC) != 0;
 	
 	SignalInstruction *insn = prog->instructions[instruction_id];
 	switch (insn->Opcode()) {
@@ -633,16 +642,19 @@ CommandCost CmdModifySignalInstruction(TileIndex tile, DoCommandFlag flags, uint
  *
  * @param tile The Tile on which to perform the operation
  * @param p1 Flags and information
- *   - Bits 0-4    Which track the signal sits on
- *   - Bits 1-16   ID of instruction to insert before
- *   - Bits 17-31  Reserved
+ *   - Bits 0-2    Which track the signal sits on
+ *   - Bits 3-18   ID of instruction to insert before
  * @param p2 unused
  * @param text unused
  */
 CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
 {
-	Track track         = (Track) GB(p1, 0, 4);
-	uint instruction_id = GB(p1, 5, 16);
+	Track track         = Extract<Track, 0, 3 >(p1);
+	uint instruction_id = GB(p1, 3, 16);
+	
+	if (!IsValidTrack(track) || !IsPlainRailTile(tile) || !HasTrack(tile, track)) {
+		return CMD_ERROR;
+	}
 	
 	if (!IsTileOwner(tile, _current_company)) 
 		return_cmd_error(STR_ERROR_AREA_IS_OWNED_BY_ANOTHER);
@@ -654,7 +666,7 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	if (instruction_id > prog->instructions.Length())
 		return_cmd_error(STR_ERR_PROGSIG_INVALID_INSTRUCTION);
 
-	bool exec = (flags & DC_EXEC);
+	bool exec = (flags & DC_EXEC) != 0;
 	
 	SignalInstruction *insn = prog->instructions[instruction_id];
 	switch (insn->Opcode()) {
@@ -678,4 +690,3 @@ CommandCost CmdRemoveSignalInstruction(TileIndex tile, DoCommandFlag flags, uint
 	InvalidateWindowData(WC_SIGNAL_PROGRAM, (tile << 3) | track);
 	return CommandCost();
 }
-

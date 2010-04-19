@@ -30,9 +30,11 @@ enum SignalType {
 	SIGTYPE_PBS        = 4, ///< normal pbs signal
 	SIGTYPE_PBS_ONEWAY = 5, ///< no-entry signal
 	SIGTYPE_PROG       = 6, ///< programmable presignal
-	SIGTYPE_LAST       = SIGTYPE_PROG,
+	
+	SIGTYPE_END        = SIGTYPE_PROG,
 	SIGTYPE_FIRST_PBS_SPRITE = SIGTYPE_PBS
 };
+template <> struct EnumPropsT<SignalType> : MakeEnumPropsT<SignalType, byte, SIGTYPE_NORMAL, SIGTYPE_END, SIGTYPE_END, 3> {};
 
 
 /** Reference to a signal

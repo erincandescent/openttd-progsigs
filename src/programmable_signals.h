@@ -57,9 +57,10 @@ enum SignalOpcode {
 	PSO_IF_ENDIF   = 4,     ///< If Endif pseudo instruction
 	PSO_SET_SIGNAL = 5,     ///< Set signal instruction
 	
-	PSO_MAX       = PSO_SET_SIGNAL,
+	PSO_END,
 	PSO_INVALID   = 0xFF
 };
+template <> struct EnumPropsT<SignalOpcode> : MakeEnumPropsT<SignalOpcode, byte, PSO_FIRST, PSO_END, PSO_INVALID, 8> {};
 
 /** Signal instruction base class. All instructions must derive from this. */
 class SignalInstruction {
